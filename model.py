@@ -2,6 +2,8 @@ from encoders.beit3d import BEiT3D
 from encoders.vit3d import VisionTransformer3D
 from decoders.mlp import MlpHead
 from decoders.convtrans import ConvTransHead
+from decoders.neuraltree import NeuralDecisionTree
+from decoders.BNetMCD import BNetMCD
 from monai.networks.nets.vit import ViT
 from utils import to_list, get_linear_schedule_with_warmup
 
@@ -109,11 +111,26 @@ class ClassificationModel(nn.Module):
               num_classes=out_channels,
               dropout_ratio=0.1
           )
+          print("MLP Decoder")
         elif decoder == "convtrans":
             self.decoder = ConvTransHead(
                 channels=hidden_size,
                 num_classes=out_channels,
                 norm_name="instance"
+            )
+        elif decoder == "neuraltree":
+            self.decoder = NeuralDecisionTree(
+                num_classes=out_channels,
+                num_cut=(2, 2, 2) # 3 dimensional? May need to add this as a param to this class
+            )
+        elif decoder == 'mcdropout':
+            #input_size = 401 * 512 * 512  # input size? Changed to 224x224 after preprocessing?
+            input_size = img_size # ?
+            self.decoder = BNetMCD(
+                input_size=input_size,
+                hidden_size=hidden_size,
+                output_size=out_channels,
+                dropout_rate=0.5  # MC Dropout rate
             )
         else:
           raise

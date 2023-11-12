@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
 
-encoder = "beit"
+encoder = "vit"
 decoder = "mlp"
 
 model = ClassificationModel(
@@ -19,8 +19,8 @@ model = ClassificationModel(
     mlp_dim = 3072,
     num_heads = 12,
     num_layers = 12,
-    encoder = "beit",
-    decoder = "mlp",
+    encoder = encoder,
+    decoder = decoder,
     loss_type = "ce",
     save_preds = False,
     dropout_rate = 0.0,
