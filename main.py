@@ -9,12 +9,12 @@ decoder = "mlp"
 
 model = ClassificationModel(
     force_2d = False,  # if set to True, the model will be trained on 2D images by only using the center slice as the input
-    use_pretrained = False,  # whether to use pretrained backbone (only applied to BEiT)
+    use_pretrained = True,  # whether to use pretrained backbone (only applied to BEiT)
     bootstrap_method = "centering",  # whether to inflate or center weights from 2D to 3D
     in_channels = 1,
     out_channels = 1,  # number of classes
     patch_size = 16,  # no depthwise
-    img_size = (32, 32, 5),
+    img_size = (512, 512, 5),
     hidden_size = 768,
     mlp_dim = 3072,
     num_heads = 12,

@@ -21,7 +21,7 @@ class CTScanDataset(Dataset):
         ct_frames = []
         for i in range(4):
             if i < 508:
-                temp = frame[i:i+5, 0:32, 0:32]
+                temp = frame[i:i+5, :, :]
             else:
                 temp = frame[i:-1, :, :]
             temp = np.reshape(temp, (1, temp.shape[0], temp.shape[1], temp.shape[2]))
