@@ -7,7 +7,7 @@ from utils import to_list, get_linear_schedule_with_warmup
 
 import torch
 import torch.nn as nn
-from torch.nn import CrossEntropyLoss
+from torch.nn import CrossEntropyLoss, BCELoss, BCEWithLogitsLoss
 import numpy as np
 from monai.losses import DiceCELoss, DiceFocalLoss
 
@@ -17,27 +17,28 @@ import pickle
 class ClassificationModel(nn.Module):
     def __init__(
         self,
-        force_2d: bool = False,  # if set to True, the model will be trained on 2D images by only using the center slice as the input
-        use_pretrained: bool = True,  # whether to use pretrained backbone (only applied to BEiT)
-        bootstrap_method: str = "centering",  # whether to inflate or center weights from 2D to 3D
-        in_channels: int = 1,
-        out_channels: int = 14,  # number of classes
-        patch_size: int = 16,  # no depthwise
-        img_size: tuple = (512, 512, 5),
-        hidden_size: int = 768,
-        mlp_dim: int = 3072,
-        num_heads: int = 12,
-        num_layers: int = 12,
-        encoder: str = "beit",
-        decoder: str = "mlp",
-        loss_type: str = "ce",
-        save_preds: bool = False,
-        dropout_rate: float = 0.0,
-        learning_rate: float = 1e-4,
-        weight_decay: float = 1e-5,
-        warmup_steps: int = 500,
-        max_steps: int = 20000,
-        adam_epsilon: float = 1e-8,
+        force_2d: bool = False,                 # if true, model only cares about center slice of input
+        use_pretrained: bool = True,            # whether or not to use pretrained weights
+        bootstrap_method: str = "centering",    # whether to inflate or center weights from 2D to 3D
+        in_channels: int = 1,                   # number of input channels
+        out_channels: int = 14,                 # number of classes
+        patch_size: int = 16,                   # no depthwise
+        img_size: tuple = (512, 512, 5),        # dimensionality of windowed input
+        hidden_size: int = 768,                 # patch embedding dimension
+        mlp_dim: int = 3072,                    # dimension of the mlp in encoder blocks
+        num_heads: int = 12,                    # number of attention heads
+        num_layers: int = 12,                   # number of encoder blocks
+        encoder: str = "beit",                  # type of ViT to use
+        decoder: str = "mlp",                   # decoder head to use
+        aggregator: str = "linear",             # aggregation method to use
+        loss_type: str = "ce",                  # loss objective
+        save_preds: bool = False,               # whether or not to save pickled predictions during val/testing
+        dropout_rate: float = 0.0,              # dropout rate
+        learning_rate: float = 1e-4,            # learning rate for optimizer
+        weight_decay: float = 1e-5,             # weight decay for optimizer
+        warmup_steps: int = 500,                # LR warmup
+        max_steps: int = 20000,                 # maximum number of epochs
+        adam_epsilon: float = 1e-8,             # constant in adam optimizer for numerical stability
     ):
         super().__init__()
         # self.modified_loss = (
@@ -94,6 +95,7 @@ class ClassificationModel(nn.Module):
                 num_heads=num_heads,
                 mlp_ratio=mlp_dim // hidden_size,
                 qkv_bias=True,
+                drop_rate=dropout_rate,
                 init_values=1,
                 use_abs_pos_emb=False,
                 use_rel_pos_bias=True,
@@ -118,41 +120,65 @@ class ClassificationModel(nn.Module):
         else:
           raise
 
-        if loss_type == "ce":
-          self.criterion = CrossEntropyLoss()
+        if aggregator == "linear":
+            self.aggregator = torch.nn.Linear(
+                in_features=4, # self.img_size[0] - self.img_size[2] + 1,
+                out_features=1
+            )
 
-    def forward(self, inputs):  # inputs: B x Cin x H x W x D
-        x = inputs.permute(0, 1, 4, 2, 3).contiguous().float()  # x: B x Cin x D x H x W
-        xs = self.encoder(x)  # hiddens: list of B x T x hidden, where T = H/P x W/P
-        print(xs[-1].size())
-        # xs = [
-        #     xs[i]
-        #     .view(inputs.shape[0], self.feat_size[0], self.feat_size[1], -1)
-        #     .permute(0, 3, 1, 2)
-        #     .contiguous()
-        #     for i in range(len(xs))
-        # ]  # xs: list of B x hidden x H/P x W/P
-        # print(len(xs))
-        # print(xs[-1].size())
-        x = self.decoder(xs)  # x: B x Cout x H x W
-        return x
+        if loss_type == "ce":
+          self.criterion = BCEWithLogitsLoss()
+
+    def forward(self, inputs):  # inputs: S x B x Cin x H x W x D
+        outs = None # S x B x Cout x H x W
+        # print(inputs.size())
+        for i, input in enumerate(inputs):
+            # print(input.size())
+            x = input.permute(0, 1, 4, 2, 3).contiguous().float()  # x: B x Cin x D x H x W
+            xs = self.encoder(x)  # hiddens: list of B x T x hidden, where T = H/P x W/P
+            x = self.decoder(xs)  # x: B x Cout
+            if outs is None:
+                outs = torch.reshape(x, (1, x.shape[0], x.shape[1]))
+            else:
+                to_add = torch.reshape(x, (1, x.shape[0], x.shape[1]))
+                outs = torch.cat((outs, to_add))
+                print(outs.size())
+                print("just appended one output! or something...")
+
+        outs = outs.permute(1, 2, 0).contiguous().float() # B x Cout x S
+        print("final size before aggregator")
+        print(outs.size())
+        print(outs.shape) 
+        # outs = outs.reshape(outs, (outs.shape[0], outs.shape[1] * outs.shape[2]))
+        outs = self.aggregator(outs) # B x Cout x 1
+        outs = torch.squeeze(outs, 2)
+        print("size after aggregator")
+        print(outs.size())
+
+        return outs
     
     def training_step(self, batch, batch_idx):
         inputs, labels = batch["image"], batch["label"]
-        n_slices = inputs.shape[-1]
+        n_slices = inputs[0].shape[-1]
         assert n_slices == self.img_size[-1]
         if self.force_2d:
-            inputs = inputs[:, :, :, :, n_slices // 2 : n_slices // 2 + 1].contiguous()
+            for i in range(len(inputs)):
+                inputs[i] = inputs[i][:, :, :, :, n_slices // 2 : n_slices // 2 + 1].contiguous()
         # labels = labels[:, :, :, :, n_slices // 2].contiguous()
         outputs = self(inputs)
         # outputs = torch.mean(outputs, (2, 3))
+        print("did one training step!")
         print(outputs.size())
         print(labels.size())
+
+        print(outputs)
+        print(labels)
         loss = self.criterion(outputs, labels)
         # dice_loss, ce_loss = torch.tensor(0), torch.tensor(0)
         result = {
             "train/loss": loss.item(),
         }
+        print("done with the training step!")
         # self.log_dict(result)
         return loss
 

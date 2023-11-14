@@ -12,9 +12,9 @@ model = ClassificationModel(
     use_pretrained = False,  # whether to use pretrained backbone (only applied to BEiT)
     bootstrap_method = "centering",  # whether to inflate or center weights from 2D to 3D
     in_channels = 1,
-    out_channels = 2,  # number of classes
+    out_channels = 1,  # number of classes
     patch_size = 16,  # no depthwise
-    img_size = (512, 512, 5),
+    img_size = (32, 32, 5),
     hidden_size = 768,
     mlp_dim = 3072,
     num_heads = 12,
@@ -62,16 +62,23 @@ def train(model, iterator):
     model.train()
     epoch_loss = 0
     for i, batch in enumerate(iterator):
-        print(batch["image"].size())
+        print(batch["image"][0].size())
         optimizer.zero_grad()
 
         loss = model.training_step(batch, i)
+        print(loss)
         # print(loss.data())
+        print("this is literally right before the backwards step")
         loss.backward()
+
+        print("we did the backwards step??")
 
         optimizer.step()
 
+        print("we got here!")
+
         epoch_loss += loss.item()
+        print("we got here too!")
         print('step :', round((i / len(iterator)) * 100, 2), '% , loss :', loss.item())
 
     return epoch_loss / len(iterator)
@@ -105,6 +112,7 @@ def fit(model, num_epochs, train_iterator, val_iterator):
             train_loss = train(model, train_iterator)
         if val_iterator is not None:
             val_loss = evaluate(model, val_iterator)
+        print("we're done with one iteration!")
 
 train_features = np.load("./data/0.npy")
 train_features = train_features[0:5, :, :]
@@ -127,11 +135,11 @@ print(labels.size())
 train_features = np.reshape(train_features, (1, 1, train_features.shape[0], train_features.shape[1], train_features.shape[2]))
 train_features = torch.transpose(torch.from_numpy(train_features), 2, 4)
 print(train_features.size())
-out = model(train_features)
-print(out)
-print(out.size())
+# out = model(train_features)
+# print(out)
+# print(out.size())
 
-test = torch.from_numpy(np.array([0, 1], dtype=float))
+test = torch.from_numpy(np.array([1], dtype=float))
 
 ct_set = CTScanDataset(
     npy_file="./data/0.npy",
@@ -140,13 +148,15 @@ ct_set = CTScanDataset(
 )
 
 print(len(ct_set))
-trainloader = DataLoader(ct_set, batch_size=4,
+trainloader = DataLoader(ct_set, batch_size=2,
                         shuffle=True, num_workers=0)
 
 train_dict = next(iter(trainloader))
 feat = train_dict["image"]
 lab = train_dict["label"]
 print("Checking!")
-print(feat.size())
+print(len(feat))
+print(feat[0].size())
+print(lab)
 
 fit(model, 10, trainloader, None)

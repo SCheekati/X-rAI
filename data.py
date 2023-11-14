@@ -16,15 +16,24 @@ class CTScanDataset(Dataset):
             root_dir (string):  Directory hosting all scans.
             transform (callable, optional): Optional transforms to be applied on a sample. 
         """
-        frame = np.load(npy_file)[0:5, :, :]
-        frame = np.reshape(frame, (1, frame.shape[0], frame.shape[1], frame.shape[2]))
-        frame = torch.transpose(torch.from_numpy(frame), 1, 3)
-        self.ct_frame = frame
-        self.labels_dir = labels_dir
+        
+        frame = np.load(npy_file)
+        ct_frames = []
+        for i in range(4):
+            if i < 508:
+                temp = frame[i:i+5, 0:32, 0:32]
+            else:
+                temp = frame[i:-1, :, :]
+            temp = np.reshape(temp, (1, temp.shape[0], temp.shape[1], temp.shape[2]))
+            temp = torch.transpose(torch.from_numpy(temp), 1, 3)
+            ct_frames.append(temp.float())
+        self.ct_frame = [ct_frames, ct_frames, ct_frames, ct_frames, ct_frames, ct_frames, ct_frames]
+        labels_dir = labels_dir.float()
+        self.labels_dir = [labels_dir, labels_dir, labels_dir, labels_dir, labels_dir, labels_dir, labels_dir]
         self.transform = transform
 
     def __len__(self):
-        return self.ct_frame.size()[0]
+        return len(self.ct_frame)
     
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
@@ -35,7 +44,7 @@ class CTScanDataset(Dataset):
         # image = io.imread(img_name)
         # landmarks = self.landmarks_frame.iloc[idx, 1:]
         # landmarks = np.array([landmarks], dtype=float).reshape(-1, 2)
-        sample = {"image": self.ct_frame, "label": self.labels_dir}
+        sample = {"image": self.ct_frame[idx], "label": self.labels_dir[idx]}
 
         if self.transform:
             sample = self.transform(sample)
