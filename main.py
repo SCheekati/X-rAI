@@ -134,8 +134,9 @@ print(out.size())
 test = torch.from_numpy(np.array([0, 1], dtype=float))
 
 ct_set = CTScanDataset(
-    npy_file="./data/0.npy",
-    labels_dir=test,
+    bucket_name="x_rai-dataset",
+    npy_file="preprocessed/multimodalpulmonaryembolismdataset/0/0.npy",
+    labels_dir="data/Labels.csv",
     transform=None
 )
 
@@ -143,9 +144,9 @@ print(len(ct_set))
 trainloader = DataLoader(ct_set, batch_size=4,
                         shuffle=True, num_workers=0)
 
-train_dict = next(iter(trainloader))
-feat = train_dict["image"]
-lab = train_dict["label"]
+batch = next(iter(trainloader))
+feat = batch["image"]
+lab = batch["label"]
 print("Checking!")
 print(feat.size())
 
