@@ -32,32 +32,8 @@ model = ClassificationModel(
 )
 
 # TODO: Make sure the optimizer is performing correctly according to our parameters!
-def train(model, iterator):
-    mod = nn.ModuleList([model.encoder, model.decoder])
-    no_decay = ["bias", "LayerNorm.weight"]
-    optimizer_grouped_parameters = [
-            {
-                "params": [
-                    p
-                    for n, p in mod.named_parameters()
-                    if not any(nd in n for nd in no_decay)
-                ],
-                "weight_decay": model.weight_decay,
-            },
-            {
-                "params": [
-                    p
-                    for n, p in mod.named_parameters()
-                    if any(nd in n for nd in no_decay)
-                ],
-                "weight_decay": 0.0,
-            },
-        ]
-    optimizer = torch.optim.AdamW(
-            optimizer_grouped_parameters,
-            lr=model.learning_rate,
-            eps=model.adam_epsilon,
-        )
+def train(model, iterator, optimizer):
+    
     # optimizer, scheduler = model.configure_optimizers()
     model.train()
     epoch_loss = 0
@@ -107,9 +83,35 @@ import pandas as pd
 import numpy as np
 
 def fit(model, num_epochs, train_iterator, val_iterator):
+    mod = nn.ModuleList([model.encoder, model.decoder])
+    no_decay = ["bias", "LayerNorm.weight"]
+    optimizer_grouped_parameters = [
+            {
+                "params": [
+                    p
+                    for n, p in mod.named_parameters()
+                    if not any(nd in n for nd in no_decay)
+                ],
+                "weight_decay": model.weight_decay,
+            },
+            {
+                "params": [
+                    p
+                    for n, p in mod.named_parameters()
+                    if any(nd in n for nd in no_decay)
+                ],
+                "weight_decay": 0.0,
+            },
+        ]
+    optimizer = torch.optim.AdamW(
+            optimizer_grouped_parameters,
+            lr=model.learning_rate,
+            eps=model.adam_epsilon,
+        )
+    
     for i in range(num_epochs):
         if train_iterator is not None:
-            train_loss = train(model, train_iterator)
+            train_loss = train(model, train_iterator, optimizer)
         if val_iterator is not None:
             val_loss = evaluate(model, val_iterator)
         print("we're done with one iteration!")
