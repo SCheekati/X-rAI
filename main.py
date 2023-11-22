@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
 
 encoder = "beit"
-decoder = "mlp"
+decoder = "neuraltree"
 
 model = ClassificationModel(
     force_2d = False,  # if set to True, the model will be trained on 2D images by only using the center slice as the input
@@ -19,8 +19,8 @@ model = ClassificationModel(
     mlp_dim = 3072,
     num_heads = 12,
     num_layers = 12,
-    encoder = "beit",
-    decoder = "mlp",
+    encoder = encoder,
+    decoder = decoder,
     loss_type = "ce",
     save_preds = False,
     dropout_rate = 0.0,
