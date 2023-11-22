@@ -63,14 +63,32 @@ class NeuralDecisionTree(nn.Module):
     def forward(self, x, temperature=0.1):
         x = x[-1]
         B, T, H = x.size()
-        x = x.view(B * T, H)  # Reshape to 2D tensor for kron prod
+        # x = x.view(B * T, H)  # Reshape to 2D tensor for kron prod
 
-        leaf = reduce(self.torch_kron_prod, map(lambda z: self.torch_bin(x[:, z[0]:z[0] + 1], z[1], temperature), enumerate(self.cut_points_list)))
-        out = torch.matmul(leaf, self.leaf_score)
+        # leaf = reduce(self.torch_kron_prod, map(lambda z: self.torch_bin(x[:, z[0]:z[0] + 1], z[1], temperature), enumerate(self.cut_points_list)))
+        # out = torch.matmul(leaf, self.leaf_score)
+        # print(out.shape)
+        # out = out.view(B, T, -1)  # Reshaped to [B, T, num_classes], might mess up the product?
+        # print(out.shape)
+        # out = torch.mean(out, dim=1)  # Now shape is [B, num_classes]
+        # print(out.shape)
+        all_outputs = []
+        for b in range(B):
+            seq = x[b]  
+            seq = seq.view(T, H) 
 
-        out = out.view(B, T, -1)  # Reshaped to [B, T, num_classes], might mess up the product?
-        out = torch.mean(out, dim=1)  # Now shape is [B, num_classes]
+            leaf = reduce(self.torch_kron_prod, map(lambda z: self.torch_bin(seq[:, z[0]:z[0] + 1], z[1], temperature), enumerate(self.cut_points_list)))
+            out = torch.matmul(leaf, self.leaf_score)
 
+            # Optionally aggregate outputs over the sequence
+            # For instance, taking the mean or max, or you can design a more complex aggregation mechanism
+            # out = torch.mean(out, dim=0)  # Example: mean aggregation over the sequence
+            #print(out.shape) T x num_classes
+            all_outputs.append(out)
+
+        # Stack all sequence outputs to form the batch output
+        out = torch.stack(all_outputs, dim=0) # [B, T, num_classes]
+        out = torch.mean(out, dim=1) # [B, num_classes]
         return out
 
     @staticmethod

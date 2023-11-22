@@ -122,7 +122,7 @@ class ClassificationModel(nn.Module):
         elif decoder == "neuraltree":
             self.decoder = NeuralDecisionTree(
                 num_classes=out_channels,
-                num_cut=(2, 2, 2) # 3 dimensional? May need to add this as a param to this class
+                num_cut=(2, 2) # 3 dimensional? May need to add this as a param to this class
             )
         elif decoder == 'mcdropout':
             #input_size = 401 * 512 * 512  # input size? Changed to 224x224 after preprocessing?
