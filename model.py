@@ -132,20 +132,24 @@ class ClassificationModel(nn.Module):
     def forward(self, inputs):  # inputs: S x B x Cin x H x W x D
         outs = None # S x B x Cout x H x W
         # print(inputs.size())
-        for i, input in enumerate(inputs):
-            # print(input.size())
-            x = input.permute(0, 1, 4, 2, 3).contiguous().float()  # x: B x Cin x D x H x W
-            xs = self.encoder(x)  # hiddens: list of B x T x hidden, where T = H/P x W/P
-            x = self.decoder(xs)  # x: B x Cout
-            if outs is None:
-                outs = torch.reshape(x, (1, x.shape[0], x.shape[1]))
-            else:
-                to_add = torch.reshape(x, (1, x.shape[0], x.shape[1]))
-                outs = torch.cat((outs, to_add))
-                print(outs.size())
-                print("just appended one output! or something...")
+        inputs = torch.stack(inputs, dim=0)
+        S = inputs.shape[0]
+        B = inputs.shape[1]
+        inputs = torch.flatten(inputs, start_dim=0, end_dim=1)
+        x = inputs.permute(0, 1, 4, 2, 3).contiguous().float()  # x: (S * B) x Cin x D x H x W
+        xs = self.encoder(x)  # hiddens: list of (S * B) x T x hidden, where T = H/P x W/P
+        x = self.decoder(xs)  # x: (S * B) x Cout
+        x = torch.reshape(x, (S, B, x.shape[1]))
 
-        outs = outs.permute(1, 2, 0).contiguous().float() # B x Cout x S
+        # if outs is None:
+        #     outs = torch.reshape(x, (1, x.shape[0], x.shape[1]))
+        # else:
+        #     to_add = torch.reshape(x, (1, x.shape[0], x.shape[1]))
+        #     outs = torch.cat((outs, to_add))
+        #     print(outs.size())
+        #     print("just appended one output! or something...")
+
+        outs = x.permute(1, 2, 0).contiguous().float() # B x Cout x S
         print("final size before aggregator")
         print(outs.size())
         print(outs.shape) 
