@@ -730,10 +730,6 @@ class BEiT3D(nn.Module):
         out_indices=[3, 5, 7, 11],
     ):
         super().__init__()
-        print("BEIT3D")
-        print(torch.cuda.current_device())  # Gives the index of the currently selected device.
-        print(torch.cuda.get_device_name(torch.cuda.current_device()))  # Gives the name of the current device.
-        print("BEIT3D")
         norm_layer = norm_layer or partial(nn.LayerNorm, eps=1e-6)
         self.num_classes = num_classes
         self.num_features = (

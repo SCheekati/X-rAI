@@ -1,2 +1,4 @@
 
 *.npy
+*.pyc
+pretrained-weights/beit_base_patch16_224_pt22k_ft22k.pth

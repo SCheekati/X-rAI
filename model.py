@@ -6,6 +6,7 @@ from decoders.BNetMCD import BNetMCD
 from decoders.convtrans import ConvTransHead
 from monai.networks.nets.vit import ViT
 from utils import to_list, get_linear_schedule_with_warmup
+import gc
 
 import torch
 import torch.nn as nn
@@ -65,7 +66,7 @@ class ClassificationModel(nn.Module):
         self.warmup_steps = warmup_steps
         self.max_steps = max_steps
         self.adam_epsilon = adam_epsilon
-
+        gc.collect()
         if encoder == "vit":
             self.encoder = VisionTransformer3D(
                 img_size=img_size if not force_2d else (img_size[0], img_size[1], 1),
@@ -147,55 +148,24 @@ class ClassificationModel(nn.Module):
 
     def forward(self, inputs):  # inputs: S x B x Cin x H x W x D
         outs = None # S x B x Cout x H x W
-        # print(inputs.size())
-        print("FORWARD")
-        print(torch.cuda.current_device())  # Gives the index of the currently selected device.
-        print(torch.cuda.get_device_name(torch.cuda.current_device()))  # Gives the name of the current device.
-        print("FORWARD")
         inputs = torch.stack(inputs, dim=0)
-        print("HELLO ANH")
         inputs = inputs.to("cuda:0")
-        print(inputs.device)
         S = inputs.shape[0]
         B = inputs.shape[1]
         inputs = torch.flatten(inputs, start_dim=0, end_dim=1)
         x = inputs.permute(0, 1, 4, 2, 3).contiguous().float()  # x: (S * B) x Cin x D x H x W
         x = x.to("cuda:0")
-        print(x.device)
-        print("HELLO ANH")
         xs = self.encoder(x)  # hiddens: list of (S * B) x T x hidden, where T = H/P x W/P
-        # print(xs)
-        # print(type(xs))
-        # xs = torch.stack(xs, dim=0)
-        # for xy in xs:
-        #     xy = xy.to("cuda:0")
-        #print(xs.device)
         x = self.decoder(xs)  # x: (S * B) x Cout
         x = torch.reshape(x, (S, B, x.shape[1]))
 
-        # if outs is None:
-        #     outs = torch.reshape(x, (1, x.shape[0], x.shape[1]))
-        # else:
-        #     to_add = torch.reshape(x, (1, x.shape[0], x.shape[1]))
-        #     outs = torch.cat((outs, to_add))
-        #     print(outs.size())
-        #     print("just appended one output! or something...")
-
         outs = x.permute(1, 2, 0).contiguous().float() # B x Cout x S
-        print("final size before aggregator")
-        print(outs.size())
-        print(outs.shape) 
         # outs = outs.reshape(outs, (outs.shape[0], outs.shape[1] * outs.shape[2]))
         outs = self.aggregator(outs) # B x Cout x 1
         outs = torch.squeeze(outs, 2)
-        print("size after aggregator")
-        print(outs.size())
-
         return outs
     
     def training_step(self, batch, batch_idx):
-        print(type(batch))
-        print(type(batch['image']))
         inputs = batch["image"]
         labels = batch["label"]
         n_slices = inputs[0].shape[-1]
@@ -206,12 +176,6 @@ class ClassificationModel(nn.Module):
         # labels = labels[:, :, :, :, n_slices // 2].contiguous()
         outputs = self(inputs)
         # outputs = torch.mean(outputs, (2, 3))
-        print("did one training step!")
-        print(outputs.size())
-        print(labels.size())
-
-        print(outputs)
-        print(labels)
         labels = labels.to("cuda:0")
         loss = self.criterion(outputs, labels)
         # dice_loss, ce_loss = torch.tensor(0), torch.tensor(0)
