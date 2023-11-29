@@ -147,23 +147,43 @@ class ClassificationModel(nn.Module):
           self.criterion = BCEWithLogitsLoss()
 
     def forward(self, inputs):  # inputs: S x B x Cin x H x W x D
-        outs = None # S x B x Cout x H x W
         inputs = torch.stack(inputs, dim=0)
-        inputs = inputs.to("cuda:0")
-        S = inputs.shape[0]
-        B = inputs.shape[1]
-        inputs = torch.flatten(inputs, start_dim=0, end_dim=1)
-        x = inputs.permute(0, 1, 4, 2, 3).contiguous().float()  # x: (S * B) x Cin x D x H x W
-        x = x.to("cuda:0")
-        xs = self.encoder(x)  # hiddens: list of (S * B) x T x hidden, where T = H/P x W/P
-        x = self.decoder(xs)  # x: (S * B) x Cout
-        x = torch.reshape(x, (S, B, x.shape[1]))
+        S, B, C, H, W, D = inputs.shape
+        all_outputs = []
+        for s in range(S):
+            print('iteration')
+            x = inputs[s]  # current window
+            x = x.view(B, C, D, H, W)  # B x Cin x D x H x W
 
-        outs = x.permute(1, 2, 0).contiguous().float() # B x Cout x S
-        # outs = outs.reshape(outs, (outs.shape[0], outs.shape[1] * outs.shape[2]))
-        outs = self.aggregator(outs) # B x Cout x 1
-        outs = torch.squeeze(outs, 2)
+            xs = self.encoder(x.to("cuda:0"))
+            out = self.decoder(xs).to("cpu")  # B x Cout? Move to cpu and then later put it back on gpu?
+            all_outputs.append(out)
+            gc.collect()
+            torch.cuda.empty_cache()
+
+        outs = torch.stack(all_outputs, dim=0).to("cuda:0")  # S x B x Cout
+        outs = outs.permute(1, 2, 0).contiguous().float()  # B x Cout x S
+
+        outs = self.aggregator(outs)  # B x Cout x 1
+        outs = torch.squeeze(outs, 2) 
         return outs
+        # outs = None # S x B x Cout x H x W
+        # inputs = torch.stack(inputs, dim=0)
+        # inputs = inputs.to("cuda:0")
+        # S = inputs.shape[0]
+        # B = inputs.shape[1]
+        # inputs = torch.flatten(inputs, start_dim=0, end_dim=1)
+        # x = inputs.permute(0, 1, 4, 2, 3).contiguous().float()  # x: (S * B) x Cin x D x H x W
+        # x = x.to("cuda:0")
+        # xs = self.encoder(x)  # hiddens: list of (S * B) x T x hidden, where T = H/P x W/P
+        # x = self.decoder(xs)  # x: (S * B) x Cout
+        # x = torch.reshape(x, (S, B, x.shape[1]))
+
+        # outs = x.permute(1, 2, 0).contiguous().float() # B x Cout x S
+        # # outs = outs.reshape(outs, (outs.shape[0], outs.shape[1] * outs.shape[2]))
+        # outs = self.aggregator(outs) # B x Cout x 1
+        # outs = torch.squeeze(outs, 2)
+        # return outs
     
     def training_step(self, batch, batch_idx):
         inputs = batch["image"]

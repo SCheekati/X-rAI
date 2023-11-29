@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
 
 encoder = "beit"
-decoder = "mlp"
+decoder = "neuraltree"
 
 model = ClassificationModel(
     force_2d = False,  # if set to True, the model will be trained on 2D images by only using the center slice as the input
@@ -43,6 +43,7 @@ def train(model, iterator, optimizer):
         loss = model.training_step(batch, i)
         loss.backward()
         optimizer.step()
+        torch.cuda.empty_cache()
         epoch_loss += loss.item()
         print('step :', round((i / len(iterator)) * 100, 2), '% , loss :', loss.item())
 
@@ -134,7 +135,7 @@ ct_set = CTScanDataset(
     transform=None
 )
 
-trainloader = DataLoader(ct_set, batch_size=1,
+trainloader = DataLoader(ct_set, batch_size=2,
                         shuffle=True, num_workers=0, pin_memory=True)
 train_dict = next(iter(trainloader))
 feat = train_dict["image"]
