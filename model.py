@@ -148,12 +148,28 @@ class ClassificationModel(nn.Module):
     def forward(self, inputs):  # inputs: S x B x Cin x H x W x D
         outs = None # S x B x Cout x H x W
         # print(inputs.size())
+        print("FORWARD")
+        print(torch.cuda.current_device())  # Gives the index of the currently selected device.
+        print(torch.cuda.get_device_name(torch.cuda.current_device()))  # Gives the name of the current device.
+        print("FORWARD")
         inputs = torch.stack(inputs, dim=0)
+        print("HELLO ANH")
+        inputs = inputs.to("cuda:0")
+        print(inputs.device)
         S = inputs.shape[0]
         B = inputs.shape[1]
         inputs = torch.flatten(inputs, start_dim=0, end_dim=1)
         x = inputs.permute(0, 1, 4, 2, 3).contiguous().float()  # x: (S * B) x Cin x D x H x W
+        x = x.to("cuda:0")
+        print(x.device)
+        print("HELLO ANH")
         xs = self.encoder(x)  # hiddens: list of (S * B) x T x hidden, where T = H/P x W/P
+        # print(xs)
+        # print(type(xs))
+        # xs = torch.stack(xs, dim=0)
+        # for xy in xs:
+        #     xy = xy.to("cuda:0")
+        #print(xs.device)
         x = self.decoder(xs)  # x: (S * B) x Cout
         x = torch.reshape(x, (S, B, x.shape[1]))
 
@@ -178,7 +194,10 @@ class ClassificationModel(nn.Module):
         return outs
     
     def training_step(self, batch, batch_idx):
-        inputs, labels = batch["image"], batch["label"]
+        print(type(batch))
+        print(type(batch['image']))
+        inputs = batch["image"]
+        labels = batch["label"]
         n_slices = inputs[0].shape[-1]
         assert n_slices == self.img_size[-1]
         if self.force_2d:
@@ -193,6 +212,7 @@ class ClassificationModel(nn.Module):
 
         print(outputs)
         print(labels)
+        labels = labels.to("cuda:0")
         loss = self.criterion(outputs, labels)
         # dice_loss, ce_loss = torch.tensor(0), torch.tensor(0)
         result = {

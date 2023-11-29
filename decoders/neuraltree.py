@@ -59,6 +59,11 @@ class NeuralDecisionTree(nn.Module):
         self.num_leaf = int(np.prod(np.array(num_cut) + 1))
         self.cut_points_list = nn.ParameterList([nn.Parameter(torch.rand([i], requires_grad=True)) for i in num_cut])
         self.leaf_score = nn.Parameter(torch.rand([self.num_leaf, num_classes], requires_grad=True))
+        print("NEURAL TREE")
+        print(torch.cuda.current_device())  # Gives the index of the currently selected device.
+        print(torch.cuda.get_device_name(torch.cuda.current_device()))  # Gives the name of the current device.
+        print("NEURAL TREE")
+
 
     def forward(self, x, temperature=0.1):
         x = x[-1]
@@ -72,6 +77,10 @@ class NeuralDecisionTree(nn.Module):
         # print(out.shape)
         # out = torch.mean(out, dim=1)  # Now shape is [B, num_classes]
         # print(out.shape)
+        print("FORWARD NTREE")
+        print(torch.cuda.current_device())  # Gives the index of the currently selected device.
+        print(torch.cuda.get_device_name(torch.cuda.current_device()))  # Gives the name of the current device.
+        print("FORWARD NTREE")
         all_outputs = []
         for b in range(B):
             seq = x[b]  
@@ -100,9 +109,9 @@ class NeuralDecisionTree(nn.Module):
     @staticmethod
     def torch_bin(x, cut_points, temperature=0.1):
         D = cut_points.shape[0]
-        W = torch.reshape(torch.linspace(1.0, D + 1.0, D + 1), [1, -1])
+        W = torch.reshape(torch.linspace(1.0, D + 1.0, D + 1), [1, -1]).to("cuda:0")
         cut_points, _ = torch.sort(cut_points)
-        b = torch.cumsum(torch.cat([torch.zeros([1]), -cut_points], 0), 0)
+        b = torch.cumsum(torch.cat([torch.zeros([1]).to("cuda:0"), -cut_points], 0), 0)
         h = torch.matmul(x, W) + b
         res = torch.exp(h - torch.max(h))
         res = res / torch.sum(res, dim=-1, keepdim=True)

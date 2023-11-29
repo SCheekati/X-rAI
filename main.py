@@ -6,6 +6,8 @@ from torch.utils.data.dataloader import DataLoader
 
 encoder = "beit"
 decoder = "neuraltree"
+# DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# torch.set_default_device(DEVICE)
 
 model = ClassificationModel(
     force_2d = False,  # if set to True, the model will be trained on 2D images by only using the center slice as the input
@@ -30,6 +32,12 @@ model = ClassificationModel(
     max_steps = 20000,
     adam_epsilon = 1e-8,
 )
+model.to("cuda:0")
+#device_of_model = next(model.parameters()).device
+#print("MODEL DEVICE IS ", device_of_model)
+device_of_model = next(model.parameters()).device
+print("MODEL DEVICE IS", device_of_model)
+
 
 # TODO: Make sure the optimizer is performing correctly according to our parameters!
 def train(model, iterator, optimizer):
@@ -38,6 +46,7 @@ def train(model, iterator, optimizer):
     model.train()
     epoch_loss = 0
     for i, batch in enumerate(iterator):
+        print("BATCH IMAGE SIZE")
         print(batch["image"][0].size())
         optimizer.zero_grad()
 
@@ -151,7 +160,9 @@ ct_set = CTScanDataset(
 
 print(len(ct_set))
 trainloader = DataLoader(ct_set, batch_size=2,
-                        shuffle=True, num_workers=0)
+                        shuffle=True, num_workers=0, pin_memory=True)
+# for data, target in trainloader:
+#     data, target = data.to("cuda:0"), target.to("cuda:0")
 
 train_dict = next(iter(trainloader))
 feat = train_dict["image"]
