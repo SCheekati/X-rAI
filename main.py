@@ -33,7 +33,7 @@ model = ClassificationModel(
 model.to("cuda:0")
 
 
-def train(model, iterator, optimizer):
+def train(model, iterator, optimizer, epoch):
     
     # optimizer, scheduler = model.configure_optimizers()
     model.train()
@@ -45,14 +45,18 @@ def train(model, iterator, optimizer):
         optimizer.step()
         torch.cuda.empty_cache()
         epoch_loss += loss.item()
-        print('step :', round((i / len(iterator)) * 100, 2), '% , loss :', loss.item())
+        print('Epoch ', epoch, ':', round((i / len(iterator)) * 100, 2), '%, Loss: ', loss.item())
 
-    return epoch_loss / len(iterator)
+    model_loss = epoch_loss / len(iterator)
+    print('Epoch ', epoch, ':', ' Final training loss: ', model_loss)
+
+    return model_loss
 
 
-def evaluate(model, iterator):
+def evaluate_val(model, iterator, epoch):
     model.eval()
     epoch_loss = 0
+    out = []
     with torch.no_grad():
         for i, batch in enumerate(iterator):
             # output = model(src, trg[:, :-1])
@@ -61,13 +65,50 @@ def evaluate(model, iterator):
 
             # loss = model.criterion(output_reshape, trg)
             # loss.backward()
-            out = model.validation_step(batch, i)
-            loss = out["loss"]
+            local_out = model.validation_step(batch, i)
+            out.extend(local_out)
+            loss = local_out["loss"]
+
             
             epoch_loss += loss.item()
-            print('step :', round((i / len(iterator)) * 100, 2), '% , loss :', loss.item())
+            print('Epoch ', epoch, ':', round((i / len(iterator)) * 100, 2), '%, Loss: ', loss.item())
 
-    return epoch_loss / len(iterator)
+        stats = model.validation_epoch_end(out)
+        acc = stats['acc']
+        model_loss = stats['loss']
+
+        print('Epoch ', epoch, ':', ' Final validation loss: ', model_loss, ', Validation accuracy: ', acc)
+
+    return stats
+
+
+def evaluate_test(model, iterator):
+    model.eval()
+    epoch_loss = 0
+    out = []
+    with torch.no_grad():
+        for i, batch in enumerate(iterator):
+            # output = model(src, trg[:, :-1])
+            # output_reshape = output.contiguous().view(-1, output.shape[-1])
+            # trg = trg[:, 1:].contiguous().view(-1)
+
+            # loss = model.criterion(output_reshape, trg)
+            # loss.backward()
+            local_out = model.test_step(batch, i)
+            out.extend(local_out)
+            loss = local_out["loss"]
+
+            
+            epoch_loss += loss.item()
+            # print('Epoch ', epoch, ':', round((i / len(iterator)) * 100, 2), '%, Loss: ', loss.item())
+
+        stats = model.test_epoch_end(out)
+        acc = stats['acc']
+        model_loss = stats['loss']
+
+        print('Test loss: ', model_loss, ', Accuracy: ', acc)
+
+    return stats
 
 import pandas as pd
 import numpy as np
@@ -103,8 +144,11 @@ def fit(model, num_epochs, train_iterator, val_iterator):
         if train_iterator is not None:
             train_loss = train(model, train_iterator, optimizer)
         if val_iterator is not None:
-            val_loss = evaluate(model, val_iterator)
+            val_stats = evaluate_val(model, val_iterator)
         print("we're done with one iteration!")
+
+def eval(model, test_iterator):
+    test_stats = evaluate_test(model, test_iterator)
 
 train_features = np.load("./data/0.npy")
 train_features = train_features[0:5, :, :]

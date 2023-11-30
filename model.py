@@ -19,6 +19,8 @@ from monai.losses import DiceCELoss, DiceFocalLoss
 import datetime
 import pickle
 
+from sklearn import metrics
+
 class ClassificationModel(nn.Module):
     def __init__(
         self,
@@ -228,20 +230,21 @@ class ClassificationModel(nn.Module):
     def validation_epoch_end(self, outputs):
         loss = np.array([x["loss"] for x in outputs]).mean()
 
-        labels = [label for x in outputs for label in x["labels"]]  # N of image shape
-        preds = [pred for x in outputs for pred in x["preds"]]  # N of image shape
+        labels = np.array([label for x in outputs for label in x["labels"]])  # N of image shape
+        preds = np.array([pred for x in outputs for pred in x["preds"]])  # N of image shape
         inputs = [None] * len(preds)
         # acc, accs, ious, dices = eval_metrics(
         #     preds, labels, self.hparams.out_channels, metrics=["mIoU", "mDice"]
         # )
 
-        acc = (labels == preds).sum().item() / labels.size(0) # ?????
+        # acc = (labels == preds).sum().item() / labels.size(0) # ?????
+        acc = metrics.roc_auc_score(labels, preds)
 
         result = {
-            "val/loss": loss,
-            "val/acc": acc,
+            "loss": loss,
+            "acc": acc,
         }
-        self.log_dict(result, sync_dist=True)
+        # self.log_dict(result, sync_dist=True)
 
         if self.save_preds:
             cur_time = datetime.datetime.today().strftime("%Y%m%d-%H%M%S")
@@ -250,7 +253,7 @@ class ClassificationModel(nn.Module):
                 for input, pred, label in zip(inputs, preds, labels):
                     pickler.dump({"input": input, "pred": pred, "label": label})
 
-        return loss
+        return result
 
     def test_step(self, batch, batch_idx):
         inputs = batch["image"]
@@ -276,23 +279,24 @@ class ClassificationModel(nn.Module):
             }
 
     def test_epoch_end(self, outputs):
-        preds = [pred for x in outputs for pred in x["preds"]]  # N of image shape
+        preds = np.array([pred for x in outputs for pred in x["preds"]])  # N of image shape
         inputs = [None] * len(preds)
         if "labels" in outputs[0]:
             loss = np.array([x["loss"] for x in outputs]).mean()
-            labels = [
+            labels = np.array([
                 label for x in outputs for label in x["labels"]
-            ]  # N of image shape
+            ])  # N of image shape
             # acc, accs, ious, dices = eval_metrics(
             #     preds, labels, self.hparams.out_channels, metrics=["mIoU", "mDice"]
             # )
-            acc = (labels == preds).sum().item() / labels.size(0) # ?????
+            # acc = (labels == preds).sum().item() / labels.size(0) # ?????
+            acc = metrics.roc_auc_score(labels, preds)
 
             result = {
-                "test/loss": loss,
-                "test/acc": acc,
+                "loss": loss,
+                "acc": acc,
             }
-            self.log_dict(result, sync_dist=True)
+            # self.log_dict(result, sync_dist=True)
 
             if self.save_preds:
                 cur_time = datetime.datetime.today().strftime("%Y%m%d-%H%M%S")
@@ -301,7 +305,7 @@ class ClassificationModel(nn.Module):
                     for input, pred, label in zip(inputs, preds, labels):
                         pickler.dump({"input": input, "pred": pred, "label": label})
 
-            return loss
+            return result
         else:
             assert self.save_preds
             cur_time = datetime.datetime.today().strftime("%Y%m%d-%H%M%S")
