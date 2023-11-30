@@ -106,76 +106,39 @@ def fit(model, num_epochs, train_iterator, val_iterator):
             val_loss = evaluate(model, val_iterator)
         print("we're done with one iteration!")
 
-# train_features = np.load("./data/0.npy")
-# train_features = train_features[0:5, :, :]
+train_features = np.load("./data/0.npy")
+train_features = train_features[0:5, :, :]
 
-# test_features = np.load("./data/1.npy")
-# test_features = test_features[0:5, :, :]
+test_features = np.load("./data/1.npy")
+test_features = test_features[0:5, :, :]
 
-# # train_features = torch.transpose(torch.from_numpy(train_features), 0, 2)
+# train_features = torch.transpose(torch.from_numpy(train_features), 0, 2)
 
 
-# # labels = pd.read_csv('./data/Labels.csv', delimiter=",")
-# # labels = torch.from_numpy(labels)
-
-# labels = np.array([[0, 1], [1, 0], [0, 1]])
+# labels = pd.read_csv('./data/Labels.csv', delimiter=",")
 # labels = torch.from_numpy(labels)
 
+labels = np.array([[0, 1], [1, 0], [0, 1]])
+labels = torch.from_numpy(labels)
 
-# train_features = np.reshape(train_features, (1, 1, train_features.shape[0], train_features.shape[1], train_features.shape[2]))
-# train_features = torch.transpose(torch.from_numpy(train_features), 2, 4)
+
+train_features = np.reshape(train_features, (1, 1, train_features.shape[0], train_features.shape[1], train_features.shape[2]))
+train_features = torch.transpose(torch.from_numpy(train_features), 2, 4)
 # out = model(train_features)
 
 
-# test = torch.from_numpy(np.array([1], dtype=float))
-
-# ct_set = CTScanDataset(
-#     bucket_name="x_rai-dataset",
-#     npy_file="preprocessed/multimodalpulmonaryembolismdataset/0/0.npy",
-#     labels_dir="data/Labels.csv",
-#     transform=None
-# )
-
-# trainloader = DataLoader(ct_set, batch_size=2,
-#                         shuffle=True, num_workers=0, pin_memory=True)
-# train_dict = next(iter(trainloader))
-def custom_collate(batch):
-    # Initialize empty lists to hold images, labels, and file names
-    images = []
-    labels = []
-    file_names = []
-
-    for item in batch:
-        for sub_item in item:
-            # Extract images, labels, and file names from each sub-item
-            images.append(sub_item['image'])
-            labels.append(sub_item['label'])
-            file_names.append(sub_item['file_name'])
-
-    # Convert numpy arrays to PyTorch tensors
-    images = [torch.from_numpy(img) for img in images]
-
-    # Convert labels to a tensor
-    labels = torch.tensor(labels)
-
-    return {'image': images, 'label': labels, 'file_name': file_names}
+test = torch.from_numpy(np.array([1], dtype=float))
 
 ct_set = CTScanDataset(
-    bucket_name="x_rai-dataset",
-    npy_files=["pre_processed/multimodalpulmonaryembolismdataset/0/1004.npy", "pre_processed/multimodalpulmonaryembolismdataset/0/0.npy", "pre_processed/multimodalpulmonaryembolismdataset/0/1.npy", "pre_processed/multimodalpulmonaryembolismdataset/0/10.npy", "pre_processed/multimodalpulmonaryembolismdataset/0/100.npy", "pre_processed/multimodalpulmonaryembolismdataset/0/1001.npy",],
-    labels_dir="data/Labels.csv",
-    transform=None,
-    stride = 1
+    npy_file="./data/0.npy",
+    labels_dir=test,
+    transform=None
 )
 
-trainloader = DataLoader(ct_set, batch_size=4,
-                        shuffle=False, num_workers=0, collate_fn=custom_collate)
-# Assuming you have already fetched the batch using the DataLoader
+trainloader = DataLoader(ct_set, batch_size=2,
+                        shuffle=True, num_workers=0, pin_memory=True)
 train_dict = next(iter(trainloader))
-
 feat = train_dict["image"]
 lab = train_dict["label"]
 
 fit(model, 10, trainloader, None)
-
-
