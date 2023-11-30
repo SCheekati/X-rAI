@@ -21,6 +21,8 @@ model = ClassificationModel(
     num_layers = 12,
     encoder = encoder,
     decoder = decoder,
+    encoder = encoder,
+    decoder = decoder,
     loss_type = "ce",
     save_preds = False,
     dropout_rate = 0.0,
@@ -130,8 +132,9 @@ train_features = torch.transpose(torch.from_numpy(train_features), 2, 4)
 test = torch.from_numpy(np.array([1], dtype=float))
 
 ct_set = CTScanDataset(
-    npy_file="./data/0.npy",
-    labels_dir=test,
+    bucket_name="x_rai-dataset",
+    npy_file="preprocessed/multimodalpulmonaryembolismdataset/0/0.npy",
+    labels_dir="data/Labels.csv",
     transform=None
 )
 

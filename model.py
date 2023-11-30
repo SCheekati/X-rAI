@@ -4,6 +4,8 @@ from decoders.mlp import MlpHead
 from decoders.neuraltree import NeuralDecisionTree
 from decoders.BNetMCD import BNetMCD
 from decoders.convtrans import ConvTransHead
+from decoders.neuraltree import NeuralDecisionTree
+from decoders.BNetMCD import BNetMCD
 from monai.networks.nets.vit import ViT
 from utils import to_list, get_linear_schedule_with_warmup
 import gc
@@ -114,6 +116,7 @@ class ClassificationModel(nn.Module):
               num_classes=out_channels,
               dropout_ratio=0.1
           )
+          print("MLP Decoder")
         elif decoder == "convtrans":
             self.decoder = ConvTransHead(
                 channels=hidden_size,
