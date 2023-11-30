@@ -19,15 +19,35 @@ def download_numpy_array(bucket_name, blob_name):
     byte_stream.seek(0)
 
     return np.load(byte_stream, allow_pickle=True)
+
+def window_ct_scan(ct_frames, window_size):
+    """
+    Slices a 3D CT scan into windows of a specified size.
+
+    Parameters:
+    ct_frames (numpy array): The 3D array representing the CT scan.
+    window_size (int): The number of slices in each window.
+
+    Returns:
+    list of numpy arrays: A list where each element is a window of the CT scan.
+    """
+    windows = []
+    for start in range(0, len(ct_frames) - window_size + 1, window_size):
+        end = start + window_size
+        window = ct_frames[start:end]
+        windows.append(window)
+    return windows
+
 class CTScanDataset(Dataset):
     """CT Scan dataset."""
 
-    def __init__(self, bucket_name, npy_files, labels_dir, transform=None, stride=1):
+    def __init__(self, bucket_name, npy_files, labels_dir, transform=None, stride=1, windowing_enabled=False):
         """
         Arguments:
-            npy_file (string):  Path to npy file with data.
+            npy_files (list):  list to npy file with data.
             root_dir (string):  Directory hosting all scans.
             transform (callable, optional): Optional transforms to be applied on a sample. 
+            windowing_enabled (bool): Whether to enable windowing of CT scans.
         """
         self.ct_frames_list = [download_numpy_array(bucket_name, f) for f in npy_files]
         self.labels_map = self.load_labels_from_csv(labels_dir)
@@ -35,6 +55,7 @@ class CTScanDataset(Dataset):
         self.bucket_name = bucket_name
         self.npy_files = npy_files
         self.stride = stride
+        self.windowing_enabled = windowing_enabled
 
     def __len__(self):
         return len(self.ct_frames_list)
@@ -47,17 +68,22 @@ class CTScanDataset(Dataset):
     def __getitem__(self, idx):
         ct_frames = self.ct_frames_list[idx]  # Get the frames for the current file
 
-        # Assume ct_frames is a 3D array (num_slices, height, width)
-        # For simplicity, let's take the first slice as the 2D frame
-        if self.transform:
-            ct_frames = self.transform(ct_frames)
+        if self.windowing_enabled:
+            # Window the CT scan
+            windows = window_ct_scan(ct_frames, self.stride)
+            if self.transform:
+                windows = [self.transform(window) for window in windows]
+        else:
+            windows = [ct_frames]  # Not windowing, use the entire scan as one item
+            if self.transform:
+                windows = [self.transform(ct_frames)]
 
         file_name = os.path.basename(self.npy_files[idx])
         label_index = self.get_label_index(file_name)
-        label = self.labels_map[label_index]  # Assuming the label index corresponds to the file index
+        label = self.labels_map[label_index]
 
-        sample = {"image": ct_frames, "label": label, "file_name": file_name}
-        return sample
+        samples = [{"image": window, "label": label, "file_name": file_name} for window in windows]
+        return samples
 
 
     def get_label_index(self, file_name):
@@ -66,19 +92,26 @@ class CTScanDataset(Dataset):
         return label_index
     
 def custom_collate(batch):
-    # Separate images, labels, and file names
-    images = [item['image'] for item in batch]
-    labels = [item['label'] for item in batch]
-    file_names = [item['file_name'] for item in batch]
+    # Initialize empty lists to hold images, labels, and file names
+    images = []
+    labels = []
+    file_names = []
+
+    for item in batch:
+        for sub_item in item:
+            # Extract images, labels, and file names from each sub-item
+            images.append(sub_item['image'])
+            labels.append(sub_item['label'])
+            file_names.append(sub_item['file_name'])
 
     # Convert numpy arrays to PyTorch tensors
-    # Since the shapes can be different, we don't stack them
     images = [torch.from_numpy(img) for img in images]
 
     # Convert labels to a tensor
     labels = torch.tensor(labels)
 
     return {'image': images, 'label': labels, 'file_name': file_names}
+
     
 ct_set = CTScanDataset(
     bucket_name="x_rai-dataset",
