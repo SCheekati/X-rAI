@@ -38,6 +38,12 @@ def window_ct_scan(ct_frames, window_size):
         windows.append(window)
     return windows
 
+def list_blobs_with_prefix(bucket_name, prefix, delimiter=None):
+    """Lists all the blobs in the bucket that begin with the prefix."""
+    storage_client = storage.Client()
+    blobs = storage_client.list_blobs(bucket_name, prefix=prefix, delimiter=delimiter)
+
+    return [blob.name for blob in blobs]
 class CTScanDataset(Dataset):
     """CT Scan dataset."""
 
@@ -49,7 +55,6 @@ class CTScanDataset(Dataset):
             transform (callable, optional): Optional transforms to be applied on a sample. 
             windowing_enabled (bool): Whether to enable windowing of CT scans.
         """
-        self.ct_frames_list = [download_numpy_array(bucket_name, f) for f in npy_files]
         self.labels_map = self.load_labels_from_csv(labels_dir)
         self.transform = transform
         self.bucket_name = bucket_name
@@ -58,7 +63,7 @@ class CTScanDataset(Dataset):
         self.windowing_enabled = windowing_enabled
 
     def __len__(self):
-        return len(self.ct_frames_list)
+        return len(self.npy_files)
     
     def load_labels_from_csv(self, labels_csv):
         df = pd.read_csv(labels_csv)
@@ -66,17 +71,10 @@ class CTScanDataset(Dataset):
         return labels_map
     
     def __getitem__(self, idx):
-        ct_frames = self.ct_frames_list[idx]  # Get the frames for the current file
-
-        if self.windowing_enabled:
-            # Window the CT scan
-            windows = window_ct_scan(ct_frames, self.stride)
-            if self.transform:
-                windows = [self.transform(window) for window in windows]
-        else:
-            windows = [ct_frames]  # Not windowing, use the entire scan as one item
-            if self.transform:
-                windows = [self.transform(ct_frames)]
+        ct_frames = download_numpy_array(self.bucket_name, self.npy_files[idx])  # Get the frames for the current file
+        windows = [ct_frames]  # Not windowing, use the entire scan as one item
+        if self.transform:
+            windows = [self.transform(ct_frames)]
 
         file_name = os.path.basename(self.npy_files[idx])
         label_index = self.get_label_index(file_name)
@@ -112,36 +110,41 @@ def custom_collate(batch):
 
     return {'image': images, 'label': labels, 'file_name': file_names}
 
-    
-ct_set = CTScanDataset(
-    bucket_name="x_rai-dataset",
-    npy_files=["pre_processed/multimodalpulmonaryembolismdataset/0/1004.npy", "pre_processed/multimodalpulmonaryembolismdataset/0/0.npy", "pre_processed/multimodalpulmonaryembolismdataset/0/1.npy", "pre_processed/multimodalpulmonaryembolismdataset/0/10.npy", "pre_processed/multimodalpulmonaryembolismdataset/0/100.npy", "pre_processed/multimodalpulmonaryembolismdataset/0/1001.npy",],
-    labels_dir="data/Labels.csv",
-    transform=None,
-    stride = 1
-)
 
-trainloader = DataLoader(ct_set, batch_size=4,
-                        shuffle=False, num_workers=0, collate_fn=custom_collate)
-# Assuming you have already fetched the batch using the DataLoader
-batch = next(iter(trainloader))
+def main():
+    bucket_name = "x_rai-dataset"
+    prefix = "resized/pre_processed/multimodalpulmonaryembolismdataset/" 
+    ct_set = CTScanDataset(
+        bucket_name="x_rai-dataset",
+        npy_files=list_blobs_with_prefix(bucket_name, prefix),
+        labels_dir="data/Labels.csv",
+        transform=None,
+        stride = 5
+    )
 
-# Iterate through each item in the batch
-# Iterate through each batch in the DataLoader
-for batch_num, batch in enumerate(trainloader):
-    print(f"Batch {batch_num + 1}")
+    trainloader = DataLoader(ct_set, batch_size=2,
+                            shuffle=False, num_workers=3, collate_fn=custom_collate)
+    # Assuming you have already fetched the batch using the DataLoader
+    batch = next(iter(trainloader))
 
     # Iterate through each item in the batch
-    for i in range(len(batch['image'])):
-        # Extract the 0th frame from the i-th item in the batch
-        print(f"File name for CT Scan {i} in Batch {batch_num + 1}: {batch['file_name'][i]}")
-        slice_to_display = batch['image'][i][0, :, :]  # 0th slice, all rows, all columns
+    # Iterate through each batch in the DataLoader
+    for batch_num, batch in enumerate(trainloader):
+        print(f"Batch {batch_num + 1}")
 
-        plt.imshow(slice_to_display.numpy(), cmap='gray')  # Display the slice
-        plt.title(f"CT Scan {i} in Batch {batch_num + 1} - 0th Frame")
-        plt.axis('off')
-        plt.show()
+        # Iterate through each item in the batch
+        for i in range(len(batch['image'])):
+            # Extract the 0th frame from the i-th item in the batch
+            print(f"File name for CT Scan {i} in Batch {batch_num + 1}: {batch['file_name'][i]}")
+            slice_to_display = batch['image'][i][0, :, :]  # 0th slice, all rows, all columns
 
+            plt.imshow(slice_to_display.numpy(), cmap='gray')  # Display the slice
+            plt.title(f"CT Scan {i} in Batch {batch_num + 1} - 0th Frame")
+            plt.axis('off')
+            plt.show()
+            
+if __name__ == '__main__':
+    main()
 
 
 
