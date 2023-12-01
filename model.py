@@ -158,7 +158,7 @@ class ClassificationModel(nn.Module):
             print('iteration')
             x = inputs[s]  # current window
             x = x.view(S, C, D, H, W)  # B x Cin x D x H x W
-            x = x.to("cuda:0", dtype=torch.cuda.FloatTensor)
+            x = x.to(torch.device('cuda:0'), dtype=torch.cuda.FloatTensor)
             xs = self.encoder()
             out = self.decoder(xs).to("cpu")  # B x Cout? Move to cpu and then later put it back on gpu?
             out = torch.mean(out, dim=0) # Cout
