@@ -38,7 +38,7 @@ def window_ct_scan(ct_frames, window_size):
     #     windows.append(window)
     # windows = torch.stack(windows, dim=0)
     #return windows
-    num_slices = ct_frames
+    num_slices = ct_frames.shape[0]
     desired_window_size = 40
 
     if num_slices >= desired_window_size:
