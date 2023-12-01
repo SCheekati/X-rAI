@@ -76,7 +76,7 @@ class CTScanDataset(Dataset):
         windows = window_ct_scan(ct_frames, 5)  # Not windowing, use the entire scan as one item
         print(windows.shape)
         # 403 x 5 x 224 x 224
-        windows = torch.reshape(windows, (windows.shape[0], 1, windows.shape[2], windows.shape[3], windows.shape[1]))
+        windows = torch.reshape(windows, (1, windows.shape[0], 1, windows.shape[2], windows.shape[3], windows.shape[1]))
         if self.transform:
             windows = [self.transform(ct_frames)]
 
