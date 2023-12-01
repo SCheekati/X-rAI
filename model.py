@@ -155,7 +155,7 @@ class ClassificationModel(nn.Module):
         inputs = torch.stack(inputs, dim=0)
         B, S, C, H, W, D = inputs.shape
         print('iteration')
-        x = x.flatten(start_dim=0, end_dim=1) # B*S x Cin x D x H x W
+        x = inputs.flatten(start_dim=0, end_dim=1) # B*S x Cin x D x H x W
         xs = self.encoder(x.to("cuda:0"))
         out = self.decoder(xs).to("cpu")  # B*S x Cout
         gc.collect()
