@@ -107,7 +107,7 @@ def custom_collate(batch):
             file_names.append(sub_item['file_name'])
 
     # Convert numpy arrays to PyTorch tensors
-    images = [torch.from_numpy(img) for img in images]
+    #images = [torch.from_numpy(img) for img in images]
 
     # Convert labels to a tensor
     labels = torch.tensor(labels)
