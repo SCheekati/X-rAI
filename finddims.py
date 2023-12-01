@@ -23,6 +23,7 @@ def list_blobs_with_prefix(bucket_name, prefix, delimiter=None):
     """Lists all the blobs in the bucket that begin with the prefix."""
     storage_client = storage.Client()
     blobs = storage_client.list_blobs(bucket_name, prefix=prefix, delimiter=delimiter)
+    return [blob.name for blob in blobs]
 
 bucket_name = "x_rai-dataset"
 prefix = "resized/pre_processed/multimodalpulmonaryembolismdataset/" 
