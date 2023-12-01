@@ -32,7 +32,7 @@ def window_ct_scan(ct_frames, window_size):
     list of numpy arrays: A list where each element is a window of the CT scan.
     """
     windows = []
-    for start in range(0, len(ct_frames) - window_size + 1, window_size):
+    for start in range(0, len(ct_frames) - window_size + 1):
         end = start + window_size
         window = ct_frames[start:end]
         windows.append(window)
@@ -73,6 +73,7 @@ class CTScanDataset(Dataset):
     def __getitem__(self, idx):
         ct_frames = download_numpy_array(self.bucket_name, self.npy_files[idx])  # Get the frames for the current file
         windows = window_ct_scan(ct_frames, 5)  # Not windowing, use the entire scan as one item
+        windows = torch.reshape(windows, (1, windows.shape[2], windows.shape[0], windows.shape[1]))
         if self.transform:
             windows = [self.transform(ct_frames)]
 

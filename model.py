@@ -153,11 +153,11 @@ class ClassificationModel(nn.Module):
 
     def forward(self, inputs):  # inputs: S x B x Cin x H x W x D
         inputs = torch.stack(inputs, dim=0)
-        S, B, C, H, W, D = inputs.shape
+        B, S, C, H, W, D = inputs.shape
         all_outputs = []
         for s in range(S):
             print('iteration')
-            x = inputs[s]  # current window
+            x = inputs[:, s, :, :, :, :]  # current window
             x = x.view(B, C, D, H, W)  # B x Cin x D x H x W
 
             xs = self.encoder(x.to("cuda:0"))
