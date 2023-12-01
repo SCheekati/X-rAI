@@ -32,7 +32,7 @@ def window_ct_scan(ct_frames, window_size):
     list of numpy arrays: A list where each element is a window of the CT scan.
     """
     windows = []
-    for start in range(0, len(ct_frames) - window_size + 1):
+    for start in range(len(ct_frames) // 2 - 17, len(ct_frames) // 2 + 19):
         end = start + window_size
         window = ct_frames[start:end]
         windows.append(window)
