@@ -72,7 +72,7 @@ class CTScanDataset(Dataset):
     
     def __getitem__(self, idx):
         ct_frames = download_numpy_array(self.bucket_name, self.npy_files[idx])  # Get the frames for the current file
-        windows = [ct_frames]  # Not windowing, use the entire scan as one item
+        windows = window_ct_scan(ct_frames, 5)  # Not windowing, use the entire scan as one item
         if self.transform:
             windows = [self.transform(ct_frames)]
 
