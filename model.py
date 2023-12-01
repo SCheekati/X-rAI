@@ -155,23 +155,26 @@ class ClassificationModel(nn.Module):
         inputs = torch.stack(inputs, dim=0)
         B, S, C, H, W, D = inputs.shape
         all_outputs = []
-        for s in range(S):
+        for s in range(B):
             print('iteration')
-            x = inputs[:, s, :, :, :, :]  # current window
-            x = x.view(B, C, D, H, W)  # B x Cin x D x H x W
+            x = inputs[s]  # current window
+            x = x.view(S, C, D, H, W)  # B x Cin x D x H x W
 
             xs = self.encoder(x.to("cuda:0"))
             out = self.decoder(xs).to("cpu")  # B x Cout? Move to cpu and then later put it back on gpu?
-            all_outputs.append(out)
+            out = torch.mean(out, dim=0) # Cout
+            all_outputs.append(out) # B x Cout
             gc.collect()
             torch.cuda.empty_cache()
 
-        outs = torch.stack(all_outputs, dim=0).to("cuda:0")  # S x B x Cout
-        outs = outs.permute(1, 2, 0).contiguous().float()  # B x Cout x S
 
-        outs = self.aggregator(outs)  # B x Cout x 1
-        outs = torch.squeeze(outs, 2) 
+        outs = torch.stack(all_outputs, dim=0).to("cuda:0")  # B x Cout
+        # outs = outs.permute(1, 2, 0).contiguous().float()  # B x Cout x S
+
+        # outs = self.aggregator(outs)  # B x Cout x 1
+        # outs = torch.squeeze(outs, 2) 
         return outs
+    
         # outs = None # S x B x Cout x H x W
         # inputs = torch.stack(inputs, dim=0)
         # inputs = inputs.to("cuda:0")
