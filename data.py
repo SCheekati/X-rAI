@@ -36,6 +36,7 @@ def window_ct_scan(ct_frames, window_size):
         end = start + window_size
         window = ct_frames[start:end]
         windows.append(window)
+    windows = torch.stack(windows, dim=0)
     return windows
 
 def list_blobs_with_prefix(bucket_name, prefix, delimiter=None):
@@ -71,7 +72,7 @@ class CTScanDataset(Dataset):
         return labels_map
     
     def __getitem__(self, idx):
-        ct_frames = download_numpy_array(self.bucket_name, self.npy_files[idx])  # Get the frames for the current file
+        ct_frames = torch.from_numpy(download_numpy_array(self.bucket_name, self.npy_files[idx]))  # Get the frames for the current file
         windows = window_ct_scan(ct_frames, 5)  # Not windowing, use the entire scan as one item
         windows = torch.reshape(windows, (1, windows.shape[2], windows.shape[0], windows.shape[1]))
         if self.transform:
