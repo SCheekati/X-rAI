@@ -190,9 +190,9 @@ test_set = CTScanDataset(
     stride = 5
 )
 
-trainloader = DataLoader(train_set, batch_size=2, shuffle=False, num_workers=3, collate_fn=custom_collate)                        
-valloader = DataLoader(val_set, batch_size=2, shuffle=False, num_workers=3, collate_fn=custom_collate)
-testloader = DataLoader(test_set, batch_size=2, shuffle=False, num_workers=3, collate_fn=custom_collate)
+trainloader = DataLoader(train_set, batch_size=1, shuffle=False, num_workers=3, collate_fn=custom_collate)                        
+valloader = DataLoader(val_set, batch_size=1, shuffle=False, num_workers=3, collate_fn=custom_collate)
+testloader = DataLoader(test_set, batch_size=1, shuffle=False, num_workers=3, collate_fn=custom_collate)
 
 fit(model, 10, trainloader, valloader)
 eval(model, testloader)

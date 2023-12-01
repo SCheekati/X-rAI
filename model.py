@@ -232,16 +232,19 @@ class ClassificationModel(nn.Module):
     
     def training_step(self, batch, batch_idx):
         inputs = batch["image"]
-        labels = batch["label"]
+        labels = batch["label"][:, np.newaxis]
         n_slices = inputs[0].shape[-1]
         assert n_slices == self.img_size[-1]
         if self.force_2d:
             for i in range(len(inputs)):
                 inputs[i] = inputs[i][:, :, :, :, n_slices // 2 : n_slices // 2 + 1].contiguous()
-        # labels = labels[:, :, :, :, n_slices // 2].contiguous()
+        # labels = labels[:, :, :, :, n_slices // 2].contiguous(
         outputs = self(inputs)
+        print("OUTPUTS ", outputs.shape)
+        print(outputs.shape)
+        print("LABELS ", labels.shape)
         # outputs = torch.mean(outputs, (2, 3))
-        labels = labels.to("cuda:0")
+        labels = labels.to(torch.device("cuda:0"), dtype=torch.float32)
         loss = self.criterion(outputs, labels)
         # dice_loss, ce_loss = torch.tensor(0), torch.tensor(0)
         result = {
