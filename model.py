@@ -265,25 +265,28 @@ class ClassificationModel(nn.Module):
         # outputs = torch.mean(outputs, (2, 3))
         labels = labels.to("cuda:0")
         loss = self.criterion(outputs, labels)
+        preds = []
+        for output in outputs:
+            preds.append(int(output > 0))
 
         return {
             "loss": loss.item(),
             "labels": to_list(labels.squeeze(dim=1)),
-            "preds": to_list(outputs.argmax(dim=1)),
+            "preds": preds
+
         }
 
     def validation_epoch_end(self, outputs):
         loss = np.array([x["loss"] for x in outputs]).mean()
 
-        labels = np.array([label for x in outputs for label in x["labels"]])  # N of image shape
-        preds = np.array([pred for x in outputs for pred in x["preds"]])  # N of image shape
+        #labels = np.array([x["labels"] for x in outputs]) # N of image shape
+        labels = np.array([
+                bool(label) for x in outputs for label in x["labels"]
+            ])
+        preds = np.array([bool(pred) for x in outputs for pred in x["preds"]])
         inputs = [None] * len(preds)
-        # acc, accs, ious, dices = eval_metrics(
-        #     preds, labels, self.hparams.out_channels, metrics=["mIoU", "mDice"]
-        # )
 
-        # acc = (labels == preds).sum().item() / labels.size(0) # ?????
-        acc = metrics.roc_auc_score(labels, preds)
+        acc = metrics.accuracy_score(labels, preds)
 
         result = {
             "loss": loss,
@@ -308,6 +311,9 @@ class ClassificationModel(nn.Module):
             for i in range(len(inputs)):
                 inputs[i] = inputs[i][:, :, :, :, n_slices // 2 : n_slices // 2 + 1].contiguous()
         outputs = self(inputs)
+        preds = []
+        for output in outputs:
+            preds.append(int(output > 0))
 
         if "label" in batch:
             labels = batch["label"].to("cuda:0")
@@ -317,26 +323,26 @@ class ClassificationModel(nn.Module):
             return {
                 "loss": loss.item(),
                 "labels": to_list(labels.squeeze(dim=1)),
-                "preds": to_list(outputs.argmax(dim=1)),
+                "preds": preds,
             }
         else:
             return {
-                "preds": to_list(outputs.argmax(dim=1)),
+                "preds": preds,
             }
 
     def test_epoch_end(self, outputs):
-        preds = np.array([pred for x in outputs for pred in x["preds"]])  # N of image shape
+        preds = np.array([bool(pred) for x in outputs for pred in x["preds"]])  # N of image shape
         inputs = [None] * len(preds)
         if "labels" in outputs[0]:
             loss = np.array([x["loss"] for x in outputs]).mean()
             labels = np.array([
-                label for x in outputs for label in x["labels"]
-            ])  # N of image shape
+                bool(label) for x in outputs for label in x["labels"]
+            ])
             # acc, accs, ious, dices = eval_metrics(
             #     preds, labels, self.hparams.out_channels, metrics=["mIoU", "mDice"]
             # )
             # acc = (labels == preds).sum().item() / labels.size(0) # ?????
-            acc = metrics.roc_auc_score(labels, preds)
+            acc = metrics.accuracy_score(labels, preds)
 
             result = {
                 "loss": loss,

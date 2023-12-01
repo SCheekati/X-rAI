@@ -4,10 +4,19 @@ import torch
 import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
 from sklearn.model_selection import train_test_split
+import numpy as np
 
 
 encoder = "beit"
 decoder = "neuraltree"
+
+train_losses = []
+val_losses = []
+test_losses = []
+
+train_accs = []
+val_accs = []
+test_accs = []
 
 model = ClassificationModel(
     force_2d = False,  # if set to True, the model will be trained on 2D images by only using the center slice as the input
@@ -51,6 +60,7 @@ def train(model, iterator, optimizer, epoch):
 
     model_loss = epoch_loss / len(iterator)
     print('Epoch ', epoch, ':', ' Final training loss: ', model_loss)
+    train_losses.append(model_loss)
 
     return model_loss
 
@@ -80,6 +90,8 @@ def evaluate_val(model, iterator, epoch):
         model_loss = stats['loss']
 
         print('Epoch ', epoch, ':', ' Final validation loss: ', model_loss, ', Validation accuracy: ', acc)
+        val_losses.append(model_loss)
+        val_accs.append(acc)
 
     return stats
 
@@ -109,6 +121,8 @@ def evaluate_test(model, iterator):
         model_loss = stats['loss']
 
         print('Test loss: ', model_loss, ', Accuracy: ', acc)
+        test_losses.append(model_loss)
+        test_accs.append(acc)
 
     return stats
 
@@ -163,7 +177,7 @@ train_val_files, test_files = train_test_split(
     file_names, test_size=0.2, random_state=42)
 
 train_files, val_files = train_test_split(
-    train_val_files, test_size=0.25, random_state=42) # 0.25 x 0.8 = 0.2
+    train_val_files, test_size=0.125, random_state=42) # 0.25 x 0.8 = 0.2
 
 train_set = CTScanDataset(
     bucket_name="x_rai-dataset",
@@ -193,5 +207,29 @@ trainloader = DataLoader(train_set, batch_size=2, shuffle=False, num_workers=3, 
 valloader = DataLoader(val_set, batch_size=2, shuffle=False, num_workers=3, collate_fn=custom_collate)
 testloader = DataLoader(test_set, batch_size=2, shuffle=False, num_workers=3, collate_fn=custom_collate)
 
-fit(model, 10, trainloader, valloader)
+fit(model, 15, trainloader, valloader)
+
+torch.save(model.state_dict(), "./model.pt")
+torch.save(model, "./model_full.pt")
+
+print(train_accs)
+print(val_accs)
+
+np.save("./train_losses.npy", np.array(train_losses))
+np.save("./val_losses.npy", np.array(val_losses))
+np.save("test_losses.npy", np.array(test_losses))
+
+np.save("./train_accs.npy", np.array(train_accs))
+np.save("./val_accs.npy", np.array(val_accs))
+np.save("./test_accs.npy", np.array(test_accs))
+
 eval(model, testloader)
+
+
+'''
+save model
+increase epoch based on time
+save accuracies,losses in npy arrays
+'''
+
+
