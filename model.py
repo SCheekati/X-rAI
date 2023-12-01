@@ -213,12 +213,20 @@ class ClassificationModel(nn.Module):
 
     def validation_step(self, batch, batch_idx):
         inputs, labels = batch["image"], batch["label"]
-        n_slices = inputs.shape[-1]
+        n_slices = inputs[0].shape[-1]
         assert n_slices == self.img_size[-1]
+        # if self.force_2d:
+        #     inputs = inputs[:, :, :, :, n_slices // 2 : n_slices // 2 + 1].contiguous()
+        # labels = labels[:, :, :, :, n_slices // 2].contiguous()
+        # outputs = self(inputs)
+        # loss = self.criterion(outputs, labels)
         if self.force_2d:
-            inputs = inputs[:, :, :, :, n_slices // 2 : n_slices // 2 + 1].contiguous()
-        labels = labels[:, :, :, :, n_slices // 2].contiguous()
+            for i in range(len(inputs)):
+                inputs[i] = inputs[i][:, :, :, :, n_slices // 2 : n_slices // 2 + 1].contiguous()
+        # labels = labels[:, :, :, :, n_slices // 2].contiguous()
         outputs = self(inputs)
+        # outputs = torch.mean(outputs, (2, 3))
+        labels = labels.to("cuda:0")
         loss = self.criterion(outputs, labels)
 
         return {
@@ -228,6 +236,7 @@ class ClassificationModel(nn.Module):
         }
 
     def validation_epoch_end(self, outputs):
+        print(outputs)
         loss = np.array([x["loss"] for x in outputs]).mean()
 
         labels = np.array([label for x in outputs for label in x["labels"]])  # N of image shape
@@ -257,15 +266,16 @@ class ClassificationModel(nn.Module):
 
     def test_step(self, batch, batch_idx):
         inputs = batch["image"]
-        n_slices = inputs.shape[-1]
+        n_slices = inputs[0].shape[-1]
         assert n_slices == self.img_size[-1]
         if self.force_2d:
-            inputs = inputs[:, :, :, :, n_slices // 2 : n_slices // 2 + 1].contiguous()
+            for i in range(len(inputs)):
+                inputs[i] = inputs[i][:, :, :, :, n_slices // 2 : n_slices // 2 + 1].contiguous()
         outputs = self(inputs)
 
         if "label" in batch:
-            labels = batch["label"]
-            labels = labels[:, :, :, :, n_slices // 2].contiguous()
+            labels = batch["label"].to("cuda:0")
+            #labels = labels[:, :, :, :, n_slices // 2].contiguous()
             loss = self.criterion(outputs, labels)
 
             return {

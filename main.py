@@ -1,8 +1,9 @@
 from model import ClassificationModel
-from data import CTScanDataset
+from data import CTScanDataset, custom_collate, list_blobs_with_prefix
 import torch
 import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
+
 
 encoder = "beit"
 decoder = "neuraltree"
@@ -66,12 +67,13 @@ def evaluate_val(model, iterator, epoch):
             # loss = model.criterion(output_reshape, trg)
             # loss.backward()
             local_out = model.validation_step(batch, i)
-            out.extend(local_out)
+            out.append(local_out)
+            #print(local_out)
             loss = local_out["loss"]
 
             
-            epoch_loss += loss.item()
-            print('Epoch ', epoch, ':', round((i / len(iterator)) * 100, 2), '%, Loss: ', loss.item())
+            epoch_loss += loss
+            print('Epoch ', epoch, ':', round((i / len(iterator)) * 100, 2), '%, Loss: ', loss)
 
         stats = model.validation_epoch_end(out)
         acc = stats['acc']
@@ -95,11 +97,11 @@ def evaluate_test(model, iterator):
             # loss = model.criterion(output_reshape, trg)
             # loss.backward()
             local_out = model.test_step(batch, i)
-            out.extend(local_out)
+            out.append(local_out)
             loss = local_out["loss"]
 
             
-            epoch_loss += loss.item()
+            epoch_loss += loss
             # print('Epoch ', epoch, ':', round((i / len(iterator)) * 100, 2), '%, Loss: ', loss.item())
 
         stats = model.test_epoch_end(out)
@@ -142,47 +144,32 @@ def fit(model, num_epochs, train_iterator, val_iterator):
     
     for i in range(num_epochs):
         if train_iterator is not None:
-            train_loss = train(model, train_iterator, optimizer)
+            train_loss = train(model, train_iterator, optimizer, i)
         if val_iterator is not None:
-            val_stats = evaluate_val(model, val_iterator)
+            val_stats = evaluate_val(model, val_iterator, i)
         print("we're done with one iteration!")
 
 def eval(model, test_iterator):
     test_stats = evaluate_test(model, test_iterator)
 
-train_features = np.load("./data/0.npy")
-train_features = train_features[0:5, :, :]
-
-test_features = np.load("./data/1.npy")
-test_features = test_features[0:5, :, :]
-
-# train_features = torch.transpose(torch.from_numpy(train_features), 0, 2)
 
 
-# labels = pd.read_csv('./data/Labels.csv', delimiter=",")
-# labels = torch.from_numpy(labels)
-
-labels = np.array([[0, 1], [1, 0], [0, 1]])
-labels = torch.from_numpy(labels)
-
-
-train_features = np.reshape(train_features, (1, 1, train_features.shape[0], train_features.shape[1], train_features.shape[2]))
-train_features = torch.transpose(torch.from_numpy(train_features), 2, 4)
-# out = model(train_features)
-
-
-test = torch.from_numpy(np.array([1], dtype=float))
-
+bucket_name = "x_rai-dataset"
+prefix = "resized/pre_processed/multimodalpulmonaryembolismdataset/" 
+print(list_blobs_with_prefix(bucket_name, prefix))
+pass
 ct_set = CTScanDataset(
-    npy_file="./data/0.npy",
-    labels_dir=test,
-    transform=None
+    bucket_name="x_rai-dataset",
+    npy_files=list_blobs_with_prefix(bucket_name, prefix),
+    labels_dir="data/Labels.csv",
+    transform=None,
+    stride = 5
 )
 
 trainloader = DataLoader(ct_set, batch_size=2,
-                        shuffle=True, num_workers=0, pin_memory=True)
-train_dict = next(iter(trainloader))
-feat = train_dict["image"]
-lab = train_dict["label"]
+                        shuffle=False, num_workers=3, collate_fn=custom_collate)
+batch = next(iter(trainloader))
+
 
 fit(model, 10, trainloader, None)
+eval(model, None)
