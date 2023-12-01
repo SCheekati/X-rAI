@@ -30,6 +30,7 @@ prefix = "resized/pre_processed/multimodalpulmonaryembolismdataset/"
 npy_files = list_blobs_with_prefix(bucket_name, prefix)
 minshape = 1000000
 for i in range(len(npy_files)):
+    print("file: ", i)
     ct_frames = torch.from_numpy(download_numpy_array(bucket_name, npy_files[i])) 
     print(ct_frames.shape)
     minshape = min(minshape, ct_frames.shape[0])
