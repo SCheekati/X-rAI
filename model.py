@@ -163,7 +163,7 @@ class ClassificationModel(nn.Module):
         torch.cuda.empty_cache()
         outs = torch.reshape(out, (B, S, out.shape[1])) # B x S x Cout
         outs = outs.permute(0, 2, 1).contiguous().float()  # B x Cout x S
-
+        outs = outs.to("cuda:0")
         outs = self.aggregator(outs)  # B x Cout x 1
         outs = torch.squeeze(outs, 2) 
         return outs
