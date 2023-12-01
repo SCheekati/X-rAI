@@ -54,6 +54,8 @@ test_accs = load_data("./test_accs.npy")
 model = torch.load("./model_full.pt")
 model.to("cuda:0")
 
+print("loaded the model!")
+
 
 def train(model, iterator, optimizer, epoch):
     
