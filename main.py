@@ -3,6 +3,7 @@ from data import CTScanDataset, custom_collate, list_blobs_with_prefix
 import torch
 import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
+from sklearn.model_selection import train_test_split
 
 
 encoder = "beit"
@@ -153,23 +154,45 @@ def eval(model, test_iterator):
     test_stats = evaluate_test(model, test_iterator)
 
 
-
 bucket_name = "x_rai-dataset"
 prefix = "resized/pre_processed/multimodalpulmonaryembolismdataset/" 
-print(list_blobs_with_prefix(bucket_name, prefix))
-pass
-ct_set = CTScanDataset(
+
+file_names = list_blobs_with_prefix(bucket_name, prefix)
+labelsdir = "data/Labels.csv"
+
+train_val_files, test_files = train_test_split(
+    file_names, test_size=0.2, random_state=42)
+
+train_files, val_files = train_test_split(
+    train_val_files, test_size=0.25, random_state=42) # 0.25 x 0.8 = 0.2
+
+train_set = CTScanDataset(
     bucket_name="x_rai-dataset",
-    npy_files=list_blobs_with_prefix(bucket_name, prefix),
-    labels_dir="data/Labels.csv",
+    npy_files=train_files,
+    labels_dir=labelsdir,
     transform=None,
     stride = 5
 )
 
-trainloader = DataLoader(ct_set, batch_size=2,
-                        shuffle=False, num_workers=3, collate_fn=custom_collate)
-batch = next(iter(trainloader))
+val_set = CTScanDataset(
+    bucket_name="x_rai-dataset",
+    npy_files=val_files,
+    labels_dir=labelsdir,
+    transform=None,
+    stride = 5
+)
 
+test_set = CTScanDataset(
+    bucket_name="x_rai-dataset",
+    npy_files=test_files,
+    labels_dir=labelsdir,
+    transform=None,
+    stride = 5
+)
 
-fit(model, 10, trainloader, None)
-eval(model, None)
+trainloader = DataLoader(train_set, batch_size=2, shuffle=False, num_workers=3, collate_fn=custom_collate)                        
+valloader = DataLoader(val_set, batch_size=2, shuffle=False, num_workers=3, collate_fn=custom_collate)
+testloader = DataLoader(test_set, batch_size=2, shuffle=False, num_workers=3, collate_fn=custom_collate)
+
+fit(model, 10, trainloader, valloader)
+eval(model, testloader)
