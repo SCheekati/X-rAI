@@ -152,10 +152,9 @@ class ClassificationModel(nn.Module):
           self.criterion = BCEWithLogitsLoss()
 
     def forward(self, inputs):  # inputs: S x B x Cin x H x W x D
-        inputs = torch.stack(inputs, dim=0)
-        B, S, C, H, W, D = inputs.shape
+        S, C, H, W, D = inputs[0].shape
         all_outputs = []
-        for s in range(B):
+        for s in range(len(inputs)):
             print('iteration')
             x = inputs[s]  # current window
             x = x.view(S, C, D, H, W)  # B x Cin x D x H x W
