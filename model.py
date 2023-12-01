@@ -118,7 +118,7 @@ class ClassificationModel(nn.Module):
               num_classes=out_channels,
               dropout_ratio=0.1
           )
-          print("MLP Decoder")
+          #print("MLP Decoder")
         elif decoder == "convtrans":
             self.decoder = ConvTransHead(
                 channels=hidden_size,
@@ -154,7 +154,6 @@ class ClassificationModel(nn.Module):
     def forward(self, inputs):  # inputs: S x B x Cin x H x W x D
         inputs = torch.stack(inputs, dim=0)
         B, S, C, H, W, D = inputs.shape
-        print('iteration')
         x = inputs.flatten(start_dim=0, end_dim=1) # B*S x Cin x H x W x D
         x = x.permute(0, 1, 4, 2, 3).contiguous().float()  # x: (S * B) x Cin x D x H x W
         xs = self.encoder(x.to("cuda:0"))
@@ -171,7 +170,6 @@ class ClassificationModel(nn.Module):
     # S, C, H, W, D = inputs[0].shape
     #     all_outputs = []
     #     for s in range(len(inputs)):
-    #         print('iteration')
     #         x = inputs[s]  # current window
     #         x = x.view(S, C, D, H, W)  # B x Cin x D x H x W
     #         x = x.to(torch.device('cuda:0'), dtype=torch.float32)
@@ -193,7 +191,6 @@ class ClassificationModel(nn.Module):
     # S, C, H, W, D = inputs[0].shape
     #     all_outputs = []
     #     for s in range(len(inputs)):
-    #         print('iteration')
     #         x = inputs[s]  # current window
     #         x = x.view(S, C, D, H, W)  # B x Cin x D x H x W
     #         x = x.to(torch.device('cuda:0'), dtype=torch.float32)
@@ -240,9 +237,6 @@ class ClassificationModel(nn.Module):
                 inputs[i] = inputs[i][:, :, :, :, n_slices // 2 : n_slices // 2 + 1].contiguous()
         # labels = labels[:, :, :, :, n_slices // 2].contiguous(
         outputs = self(inputs)
-        print("OUTPUTS ", outputs.shape)
-        print(outputs.shape)
-        print("LABELS ", labels.shape)
         # outputs = torch.mean(outputs, (2, 3))
         labels = labels.to(torch.device("cuda:0"), dtype=torch.float32)
         loss = self.criterion(outputs, labels)
@@ -250,7 +244,7 @@ class ClassificationModel(nn.Module):
         result = {
             "train/loss": loss.item(),
         }
-        print("done with the training step!")
+        #print("done with the training step!")
         # self.log_dict(result)
         return loss
 
@@ -279,7 +273,6 @@ class ClassificationModel(nn.Module):
         }
 
     def validation_epoch_end(self, outputs):
-        print(outputs)
         loss = np.array([x["loss"] for x in outputs]).mean()
 
         labels = np.array([label for x in outputs for label in x["labels"]])  # N of image shape

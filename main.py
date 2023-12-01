@@ -47,7 +47,7 @@ def train(model, iterator, optimizer, epoch):
         optimizer.step()
         torch.cuda.empty_cache()
         epoch_loss += loss.item()
-        print('Epoch ', epoch, ':', round((i / len(iterator)) * 100, 2), '%, Loss: ', loss.item())
+        #print('Epoch ', epoch, ':', round((i / len(iterator)) * 100, 2), '%, Loss: ', loss.item())
 
     model_loss = epoch_loss / len(iterator)
     print('Epoch ', epoch, ':', ' Final training loss: ', model_loss)
@@ -69,12 +69,11 @@ def evaluate_val(model, iterator, epoch):
             # loss.backward()
             local_out = model.validation_step(batch, i)
             out.append(local_out)
-            #print(local_out)
             loss = local_out["loss"]
 
             
             epoch_loss += loss
-            print('Epoch ', epoch, ':', round((i / len(iterator)) * 100, 2), '%, Loss: ', loss)
+            #print('Epoch ', epoch, ':', round((i / len(iterator)) * 100, 2), '%, Loss: ', loss)
 
         stats = model.validation_epoch_end(out)
         acc = stats['acc']
@@ -148,7 +147,7 @@ def fit(model, num_epochs, train_iterator, val_iterator):
             train_loss = train(model, train_iterator, optimizer, i)
         if val_iterator is not None:
             val_stats = evaluate_val(model, val_iterator, i)
-        print("we're done with one iteration!")
+        #print("we're done with one iteration!")
 
 def eval(model, test_iterator):
     test_stats = evaluate_test(model, test_iterator)
@@ -190,9 +189,9 @@ test_set = CTScanDataset(
     stride = 5
 )
 
-trainloader = DataLoader(train_set, batch_size=1, shuffle=False, num_workers=3, collate_fn=custom_collate)                        
-valloader = DataLoader(val_set, batch_size=1, shuffle=False, num_workers=3, collate_fn=custom_collate)
-testloader = DataLoader(test_set, batch_size=1, shuffle=False, num_workers=3, collate_fn=custom_collate)
+trainloader = DataLoader(train_set, batch_size=2, shuffle=False, num_workers=3, collate_fn=custom_collate)                        
+valloader = DataLoader(val_set, batch_size=2, shuffle=False, num_workers=3, collate_fn=custom_collate)
+testloader = DataLoader(test_set, batch_size=2, shuffle=False, num_workers=3, collate_fn=custom_collate)
 
 fit(model, 10, trainloader, valloader)
 eval(model, testloader)
