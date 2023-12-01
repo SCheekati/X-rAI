@@ -30,7 +30,7 @@ class ClassificationModel(nn.Module):
         in_channels: int = 1,                   # number of input channels
         out_channels: int = 14,                 # number of classes
         patch_size: int = 16,                   # no depthwise
-        img_size: tuple = (512, 512, 5),        # dimensionality of windowed input
+        img_size: tuple = (224, 224, 5),        # dimensionality of windowed input
         hidden_size: int = 768,                 # patch embedding dimension
         mlp_dim: int = 3072,                    # dimension of the mlp in encoder blocks
         num_heads: int = 12,                    # number of attention heads
