@@ -144,7 +144,7 @@ class ClassificationModel(nn.Module):
 
         if aggregator == "linear":
             self.aggregator = torch.nn.Linear(
-                in_features=4, # self.img_size[0] - self.img_size[2] + 1,
+                in_features=36, # self.img_size[0] - self.img_size[2] + 1,
                 out_features=1
             )
 
@@ -152,27 +152,64 @@ class ClassificationModel(nn.Module):
           self.criterion = BCEWithLogitsLoss()
 
     def forward(self, inputs):  # inputs: S x B x Cin x H x W x D
-        S, C, H, W, D = inputs[0].shape
-        all_outputs = []
-        for s in range(len(inputs)):
-            print('iteration')
-            x = inputs[s]  # current window
-            x = x.view(S, C, D, H, W)  # B x Cin x D x H x W
-            x = x.to(torch.device('cuda:0'), dtype=torch.float32)
-            xs = self.encoder(x)
-            out = self.decoder(xs).to("cpu")  # B x Cout? Move to cpu and then later put it back on gpu?
-            out = torch.mean(out, dim=0) # Cout
-            all_outputs.append(out) # B x Cout
-            gc.collect()
-            torch.cuda.empty_cache()
+        inputs = torch.stack(inputs, dim=0)
+        B, S, C, H, W, D = inputs.shape
+        print('iteration')
+        x = x.flatten(start_dim=0, end_dim=1) # B*S x Cin x D x H x W
+        xs = self.encoder(x.to("cuda:0"))
+        out = self.decoder(xs).to("cpu")  # B*S x Cout
+        gc.collect()
+        torch.cuda.empty_cache()
+        outs = torch.reshape(out, (B, S, out.shape[1])) # B x S x Cout
+        outs = outs.permute(0, 2, 1).contiguous().float()  # B x Cout x S
 
-
-        outs = torch.stack(all_outputs, dim=0).to("cuda:0")  # B x Cout
-        # outs = outs.permute(1, 2, 0).contiguous().float()  # B x Cout x S
-
-        # outs = self.aggregator(outs)  # B x Cout x 1
-        # outs = torch.squeeze(outs, 2) 
+        outs = self.aggregator(outs)  # B x Cout x 1
+        outs = torch.squeeze(outs, 2) 
         return outs
+    
+    # S, C, H, W, D = inputs[0].shape
+    #     all_outputs = []
+    #     for s in range(len(inputs)):
+    #         print('iteration')
+    #         x = inputs[s]  # current window
+    #         x = x.view(S, C, D, H, W)  # B x Cin x D x H x W
+    #         x = x.to(torch.device('cuda:0'), dtype=torch.float32)
+    #         xs = self.encoder(x)
+    #         out = self.decoder(xs).to("cpu")  # B x Cout? Move to cpu and then later put it back on gpu?
+    #         out = torch.mean(out, dim=0) # Cout
+    #         all_outputs.append(out) # B x Cout
+    #         gc.collect()
+    #         torch.cuda.empty_cache()
+
+
+    #     outs = torch.stack(all_outputs, dim=0).to("cuda:0")  # B x Cout
+    #     # outs = outs.permute(1, 2, 0).contiguous().float()  # B x Cout x S
+
+    #     # outs = self.aggregator(outs)  # B x Cout x 1
+    #     # outs = torch.squeeze(outs, 2) 
+    #     return outs
+    
+    # S, C, H, W, D = inputs[0].shape
+    #     all_outputs = []
+    #     for s in range(len(inputs)):
+    #         print('iteration')
+    #         x = inputs[s]  # current window
+    #         x = x.view(S, C, D, H, W)  # B x Cin x D x H x W
+    #         x = x.to(torch.device('cuda:0'), dtype=torch.float32)
+    #         xs = self.encoder(x)
+    #         out = self.decoder(xs).to("cpu")  # B x Cout? Move to cpu and then later put it back on gpu?
+    #         out = torch.mean(out, dim=0) # Cout
+    #         all_outputs.append(out) # B x Cout
+    #         gc.collect()
+    #         torch.cuda.empty_cache()
+
+
+    #     outs = torch.stack(all_outputs, dim=0).to("cuda:0")  # B x Cout
+    #     # outs = outs.permute(1, 2, 0).contiguous().float()  # B x Cout x S
+
+    #     # outs = self.aggregator(outs)  # B x Cout x 1
+    #     # outs = torch.squeeze(outs, 2) 
+    #     return outs
     
         # outs = None # S x B x Cout x H x W
         # inputs = torch.stack(inputs, dim=0)
