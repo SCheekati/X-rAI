@@ -249,21 +249,16 @@ class ClassificationModel(nn.Module):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        inputs, labels = batch["image"], batch["label"]
+        inputs, labels = batch["image"], batch["label"][:, np.newaxis]
         n_slices = inputs[0].shape[-1]
         assert n_slices == self.img_size[-1]
-        # if self.force_2d:
-        #     inputs = inputs[:, :, :, :, n_slices // 2 : n_slices // 2 + 1].contiguous()
-        # labels = labels[:, :, :, :, n_slices // 2].contiguous()
-        # outputs = self(inputs)
-        # loss = self.criterion(outputs, labels)
         if self.force_2d:
             for i in range(len(inputs)):
                 inputs[i] = inputs[i][:, :, :, :, n_slices // 2 : n_slices // 2 + 1].contiguous()
         # labels = labels[:, :, :, :, n_slices // 2].contiguous()
         outputs = self(inputs)
         # outputs = torch.mean(outputs, (2, 3))
-        labels = labels.to("cuda:0")
+        labels = labels.to(torch.device("cuda:0"), dtype=torch.float32)
         loss = self.criterion(outputs, labels)
         preds = []
         for output in outputs:
@@ -316,7 +311,8 @@ class ClassificationModel(nn.Module):
             preds.append(int(output > 0))
 
         if "label" in batch:
-            labels = batch["label"].to("cuda:0")
+            labels = batch["label"][:, np.newaxis]
+            labels = labels.to(torch.device("cuda:0"), dtype=torch.float32)
             #labels = labels[:, :, :, :, n_slices // 2].contiguous()
             loss = self.criterion(outputs, labels)
 
