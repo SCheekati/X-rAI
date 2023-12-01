@@ -38,7 +38,7 @@ def window_ct_scan(ct_frames, window_size):
     #     windows.append(window)
     # windows = torch.stack(windows, dim=0)
     #return windows
-    num_slices = ct_frames.shape[0]
+    num_slices = ct_frames
     desired_window_size = 40
 
     if num_slices >= desired_window_size:
@@ -59,7 +59,7 @@ def window_ct_scan(ct_frames, window_size):
                 temp.append(duplicated_slices[i])
             num_slices *= 2
             duplicated_slices = temp
-        return window_ct_scan(duplicated_slices, window_size)
+        return window_ct_scan(torch.stack(duplicated_slices, dim=0), window_size)
 
 def list_blobs_with_prefix(bucket_name, prefix, delimiter=None):
     """Lists all the blobs in the bucket that begin with the prefix."""
