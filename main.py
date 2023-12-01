@@ -5,42 +5,53 @@ import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
 from sklearn.model_selection import train_test_split
 import numpy as np
+import os
 
 
 encoder = "beit"
 decoder = "neuraltree"
 
-train_losses = []
-val_losses = []
-test_losses = []
+def load_data(filename):
+    if os.path.exists(filename):
+        return list(np.load(filename))
+    return []
 
-train_accs = []
-val_accs = []
-test_accs = []
+# Load existing data
+train_losses = load_data("./train_losses.npy")
+val_losses = load_data("./val_losses.npy")
+test_losses = load_data("test_losses.npy")
 
-model = ClassificationModel(
-    force_2d = False,  # if set to True, the model will be trained on 2D images by only using the center slice as the input
-    use_pretrained = True,  # whether to use pretrained backbone (only applied to BEiT)
-    bootstrap_method = "centering",  # whether to inflate or center weights from 2D to 3D
-    in_channels = 1,
-    out_channels = 1,  # number of classes
-    patch_size = 16,  # no depthwise
-    img_size = (224, 224, 5),
-    hidden_size = 768,
-    mlp_dim = 3072,
-    num_heads = 12,
-    num_layers = 12,
-    encoder = encoder,
-    decoder = decoder,
-    loss_type = "ce",
-    save_preds = False,
-    dropout_rate = 0.0,
-    learning_rate = 1e-4,
-    weight_decay = 1e-5,
-    warmup_steps = 500,
-    max_steps = 20000,
-    adam_epsilon = 1e-8,
-)
+val_accs = load_data("./val_accs.npy")
+test_accs = load_data("./test_accs.npy")
+
+#train from scratch
+# model = ClassificationModel(
+#     force_2d = False,  # if set to True, the model will be trained on 2D images by only using the center slice as the input
+#     use_pretrained = True,  # whether to use pretrained backbone (only applied to BEiT)
+#     bootstrap_method = "centering",  # whether to inflate or center weights from 2D to 3D
+#     in_channels = 1,
+#     out_channels = 1,  # number of classes
+#     patch_size = 16,  # no depthwise
+#     img_size = (224, 224, 5),
+#     hidden_size = 768,
+#     mlp_dim = 3072,
+#     num_heads = 12,
+#     num_layers = 12,
+#     encoder = encoder,
+#     decoder = decoder,
+#     loss_type = "ce",
+#     save_preds = False,
+#     dropout_rate = 0.0,
+#     learning_rate = 1e-4,
+#     weight_decay = 1e-5,
+#     warmup_steps = 500,
+#     max_steps = 20000,
+#     adam_epsilon = 1e-8,
+# )
+# model.to("cuda:0")
+
+#train from loaded model
+model = torch.load("./model_full.pt")
 model.to("cuda:0")
 
 
@@ -207,19 +218,18 @@ trainloader = DataLoader(train_set, batch_size=2, shuffle=False, num_workers=3, 
 valloader = DataLoader(val_set, batch_size=2, shuffle=False, num_workers=3, collate_fn=custom_collate)
 testloader = DataLoader(test_set, batch_size=2, shuffle=False, num_workers=3, collate_fn=custom_collate)
 
-fit(model, 15, trainloader, valloader)
+fit(model, 10, trainloader, valloader)
 
 torch.save(model.state_dict(), "./model.pt")
 torch.save(model, "./model_full.pt")
 
-print(train_accs)
 print(val_accs)
+print(val_losses)
 
 np.save("./train_losses.npy", np.array(train_losses))
 np.save("./val_losses.npy", np.array(val_losses))
-np.save("test_losses.npy", np.array(test_losses))
+np.save("./test_losses.npy", np.array(test_losses))
 
-np.save("./train_accs.npy", np.array(train_accs))
 np.save("./val_accs.npy", np.array(val_accs))
 np.save("./test_accs.npy", np.array(test_accs))
 
