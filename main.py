@@ -9,7 +9,7 @@ import os
 
 
 encoder = "beit"
-decoder = "neuraltree"
+decoder = "mlp"
 
 def load_data(filename):
     if os.path.exists(filename):
@@ -25,36 +25,36 @@ val_accs = load_data("./val_accs.npy")
 test_accs = load_data("./test_accs.npy")
 
 #train from scratch
-# model = ClassificationModel(
-#     force_2d = False,  # if set to True, the model will be trained on 2D images by only using the center slice as the input
-#     use_pretrained = True,  # whether to use pretrained backbone (only applied to BEiT)
-#     bootstrap_method = "centering",  # whether to inflate or center weights from 2D to 3D
-#     in_channels = 1,
-#     out_channels = 1,  # number of classes
-#     patch_size = 16,  # no depthwise
-#     img_size = (224, 224, 5),
-#     hidden_size = 768,
-#     mlp_dim = 3072,
-#     num_heads = 12,
-#     num_layers = 12,
-#     encoder = encoder,
-#     decoder = decoder,
-#     loss_type = "ce",
-#     save_preds = False,
-#     dropout_rate = 0.0,
-#     learning_rate = 1e-4,
-#     weight_decay = 1e-5,
-#     warmup_steps = 500,
-#     max_steps = 20000,
-#     adam_epsilon = 1e-8,
-# )
-# model.to("cuda:0")
+model = ClassificationModel(
+    force_2d = False,  # if set to True, the model will be trained on 2D images by only using the center slice as the input
+    use_pretrained = True,  # whether to use pretrained backbone (only applied to BEiT)
+    bootstrap_method = "centering",  # whether to inflate or center weights from 2D to 3D
+    in_channels = 1,
+    out_channels = 1,  # number of classes
+    patch_size = 16,  # no depthwise
+    img_size = (224, 224, 5),
+    hidden_size = 768,
+    mlp_dim = 3072,
+    num_heads = 12,
+    num_layers = 12,
+    encoder = encoder,
+    decoder = decoder,
+    loss_type = "ce",
+    save_preds = False,
+    dropout_rate = 0.0,
+    learning_rate = 1e-4,
+    weight_decay = 1e-5,
+    warmup_steps = 500,
+    max_steps = 20000,
+    adam_epsilon = 1e-8,
+)
+model.to("cuda:0")
+print("Using encoder: ", encoder, " and decoder: ", decoder)
 
 #train from loaded model
-model = torch.load("./model_full.pt")
-model.to("cuda:0")
-
-print("loaded the model!")
+# model = torch.load("./model_full.pt")
+# model.to("cuda:0")
+#print("loaded the model!")
 
 
 def train(model, iterator, optimizer, epoch):
@@ -223,7 +223,7 @@ trainloader = DataLoader(train_set, batch_size=2, shuffle=False, num_workers=3, 
 valloader = DataLoader(val_set, batch_size=2, shuffle=False, num_workers=3, collate_fn=custom_collate)
 testloader = DataLoader(test_set, batch_size=2, shuffle=False, num_workers=3, collate_fn=custom_collate)
 
-fit(model, 15, trainloader, valloader)
+fit(model, 10, trainloader, valloader)
 
 print(val_accs)
 print(val_losses)
