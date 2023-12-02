@@ -175,6 +175,9 @@ def fit(model, num_epochs, train_iterator, val_iterator):
         if val_iterator is not None:
             val_stats = evaluate_val(model, val_iterator, i)
         #print("we're done with one iteration!")
+        torch.save(model.state_dict(), "./model.pt")
+        torch.save(model, "./model_full.pt")
+        print("saved the model!")
 
 def eval(model, test_iterator):
     test_stats = evaluate_test(model, test_iterator)
@@ -220,10 +223,7 @@ trainloader = DataLoader(train_set, batch_size=2, shuffle=False, num_workers=3, 
 valloader = DataLoader(val_set, batch_size=2, shuffle=False, num_workers=3, collate_fn=custom_collate)
 testloader = DataLoader(test_set, batch_size=2, shuffle=False, num_workers=3, collate_fn=custom_collate)
 
-fit(model, 10, trainloader, valloader)
-
-torch.save(model.state_dict(), "./model.pt")
-torch.save(model, "./model_full.pt")
+fit(model, 15, trainloader, valloader)
 
 print(val_accs)
 print(val_losses)
